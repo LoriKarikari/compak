@@ -23,7 +23,6 @@ linters:
     - gocyclo
     - gocognit
     - prealloc
-    - exportloopref
     - bodyclose
     - noctx
     - rowserrcheck
@@ -40,7 +39,8 @@ linters-settings:
   goimports:
     local-prefixes: github.com/LoriKarikari/compak
   govet:
-    check-shadowing: true
+    disable:
+      - shadow
   revive:
     rules:
       - name: blank-imports
@@ -91,6 +91,7 @@ linters-settings:
 
 issues:
   exclude-use-default: false
+  uniq-by-line: true
   exclude-rules:
     - path: _test\.go
       linters:
@@ -107,10 +108,16 @@ issues:
     - linters:
         - revive
       text: "exported: exported .* should have comment or be unexported"
+    - linters:
+        - revive
+      text: "should have a package comment"
+    - linters:
+        - errcheck
+      text: "Error return value of `viper.BindPFlag` is not checked"
 
 output:
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
-  unique-by-line: true
   sort-results: true
