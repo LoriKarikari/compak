@@ -5,6 +5,21 @@
   <h3 align="center">compak</h3>
 
   <p align="center">
+    <a href="https://github.com/LoriKarikari/compak/actions/workflows/ci.yml">
+      <img src="https://github.com/LoriKarikari/compak/actions/workflows/ci.yml/badge.svg" alt="CI">
+    </a>
+    <a href="https://github.com/LoriKarikari/compak/releases">
+      <img src="https://img.shields.io/github/v/release/LoriKarikari/compak" alt="Release">
+    </a>
+    <a href="https://github.com/LoriKarikari/compak/blob/main/LICENSE">
+      <img src="https://img.shields.io/github/license/LoriKarikari/compak" alt="License">
+    </a>
+    <a href="https://goreportcard.com/report/github.com/LoriKarikari/compak">
+      <img src="https://goreportcard.com/badge/github.com/LoriKarikari/compak" alt="Go Report Card">
+    </a>
+  </p>
+
+  <p align="center">
     A package manager for Docker Compose applications
     <!-- <br />
     <a href="https://github.com/LoriKarikari/compak"><strong>Explore the docs »</strong></a>
@@ -19,7 +34,8 @@
 
 ## About The Project
 
-compak allows you to install, manage, and distribute multi-container applications using Docker Compose. Packages are stored in OCI registries like GitHub Container Registry or Docker Hub.  
+Compak allows you to install, manage, and distribute multi-container applications using Docker Compose. Packages are stored in OCI registries like GitHub Container Registry or Docker Hub.
+
 Inspired by Docker App ([deprecated in 2021](https://github.com/docker/roadmap/issues/209)), compak fills the gap for standardized distribution of Compose applications without the complexity of full orchestration platforms.
 
 
@@ -112,13 +128,16 @@ services:
 
 ## Publishing Packages
 
-Use the oras CLI to publish packages to OCI registries:
+Publish packages to OCI registries using the built-in publish command:
 
 ```bash
-oras push ghcr.io/user/package:version \
-  --artifact-type application/vnd.compak.package.v1+tar \
-  package.yaml:application/vnd.compak.package.config.v1+yaml \
-  docker-compose.yaml:application/vnd.compak.compose.v1+yaml
+compak publish ghcr.io/user/package:version --path ./package-directory
+```
+
+For GitHub Container Registry, set your personal access token:
+```bash
+export GITHUB_TOKEN=your_token_here
+compak publish ghcr.io/user/package:version
 ```
 
 ## Roadmap
@@ -128,7 +147,7 @@ oras push ghcr.io/user/package:version \
 - [x] OCI registry pull functionality
 - [x] Parameter substitution
 - [x] Local state tracking
-- [ ] Package publishing command
+- [x] Package publishing command
 - [ ] Package search functionality
 - [ ] Installation scripts (brew, apt, binary releases)
 
