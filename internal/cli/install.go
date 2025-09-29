@@ -1,7 +1,10 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -9,6 +12,7 @@ import (
 	"github.com/LoriKarikari/compak/internal/config"
 	"github.com/LoriKarikari/compak/internal/core/compose"
 	pkg "github.com/LoriKarikari/compak/internal/core/package"
+	"github.com/LoriKarikari/compak/internal/core/registry"
 )
 
 var installCmd = &cobra.Command{
@@ -16,16 +20,23 @@ var installCmd = &cobra.Command{
 	Short: "Install a package",
 	Long: `Install a Docker Compose package with optional parameter customization.
 
-Packages can be installed from local directories using the --path flag.
+Packages can be installed from:
+- OCI registries (e.g., ghcr.io/user/package:version)
+- Local directories using the --path flag
+
 Parameters can be customized using the --set flag, which accepts key=value pairs.`,
-	Example: `  # Install from local directory
+	Example: `  # Install from OCI registry
+  compak install ghcr.io/compak/nginx:1.0.0
+  compak install docker.io/myuser/wordpress:latest
+
+  # Install from local directory
   compak install nginx --path ./examples/nginx
 
   # Install with custom parameters
   compak install nginx --path ./examples/nginx --set PORT=8080 --set SERVER_NAME=localhost
 
   # Install with multiple parameter overrides
-  compak install nginx --path ./examples/nginx \
+  compak install ghcr.io/compak/nginx:1.0.0 \
     --set PORT=9090 \
     --set SERVER_NAME=myserver \
     --set MAX_BODY_SIZE=50m`,
@@ -62,17 +73,39 @@ Parameters can be customized using the --set flag, which accepts key=value pairs
 		manager := pkg.NewManager(client, composeCmd, stateDir)
 
 		var packageToInstall *pkg.Package
+		var sourcePath string
 
 		if localPath != "" {
 			packageToInstall, err = manager.LoadPackageFromDir(localPath)
 			if err != nil {
 				return fmt.Errorf("failed to load package from %s: %w", localPath, err)
 			}
+			sourcePath = localPath
+		} else if registry.IsRegistryReference(packageName) {
+			fmt.Printf("Pulling package from registry: %s\n", packageName)
+
+			registryClient := registry.NewClient()
+			tempDir := filepath.Join(os.TempDir(), "compak-pull", fmt.Sprintf("%d", os.Getpid()))
+			defer func() {
+				if err := os.RemoveAll(tempDir); err != nil {
+					fmt.Printf("Warning: failed to clean up temp directory: %v\n", err)
+				}
+			}()
+
+			if err := registryClient.Pull(context.Background(), packageName, tempDir); err != nil {
+				return fmt.Errorf("failed to pull package: %w", err)
+			}
+
+			packageToInstall, err = manager.LoadPackageFromDir(tempDir)
+			if err != nil {
+				return fmt.Errorf("failed to load pulled package: %w", err)
+			}
+			sourcePath = tempDir
 		} else {
 			packageToInstall = &pkg.Package{
 				Name:        packageName,
 				Version:     version,
-				Description: "Remote package (not yet implemented)",
+				Description: "Local package",
 				Parameters:  make(map[string]pkg.Param),
 				Values:      make(map[string]string),
 			}
@@ -118,8 +151,8 @@ Parameters can be customized using the --set flag, which accepts key=value pairs
 			}
 		}
 
-		if localPath != "" {
-			return manager.DeployFromPath(*packageToInstall, values, localPath)
+		if sourcePath != "" {
+			return manager.DeployFromPath(*packageToInstall, values, sourcePath)
 		}
 
 		return manager.Deploy(*packageToInstall, values)
