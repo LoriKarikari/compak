@@ -28,8 +28,9 @@ var uninstallCmd = &cobra.Command{
 		}
 
 		client := pkg.NewClient(composeCmd, stateDir)
+		manager := pkg.NewManager(client, composeCmd, stateDir)
 
-		return client.Uninstall(packageName)
+		return manager.Stop(packageName)
 	},
 }
 

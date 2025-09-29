@@ -1,22 +1,20 @@
 package cli
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-)
-
-var (
-	cfgFile string
-	verbose bool
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "compak",
-	Short: "A CLI application",
-	Long:  `A simple CLI application built with Go and Cobra.`,
+	Short: "Package manager for Docker Compose applications",
+	Long: `Compak is a CLI tool for managing Docker Compose applications as packages.
+
+Compak allows you to install, manage, and deploy multi-container applications
+using a simple package format. It supports both Docker Compose and Podman Compose,
+automatically detecting the best available compose command.`,
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: false,
+	},
 }
 
 func Execute() error {
@@ -24,32 +22,4 @@ func Execute() error {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
-
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file")
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
-
-	_ = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
-}
-
-func initConfig() {
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	} else {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
-			os.Exit(1)
-		}
-
-		viper.AddConfigPath(home)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".config")
-	}
-
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err == nil && verbose {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
-	}
 }
