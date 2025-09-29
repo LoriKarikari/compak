@@ -107,7 +107,6 @@ func (m *Manager) setupPackageFiles(packageDir, sourcePath string, pkg Package, 
 	return nil
 }
 
-
 func (m *Manager) Stop(packageName string) error {
 	if err := validatePackageName(packageName); err != nil {
 		return fmt.Errorf("invalid package name: %w", err)

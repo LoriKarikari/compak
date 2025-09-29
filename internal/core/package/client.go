@@ -94,7 +94,7 @@ func (c *Client) mergeValues(pkg Package, overrides map[string]string) map[strin
 	defaults := lo.MapEntries(pkg.Parameters, func(name string, param Param) (string, string) {
 		return name, param.Default
 	})
-	
+
 	defaults = lo.PickBy(defaults, func(k, v string) bool {
 		return v != ""
 	})
