@@ -23,8 +23,6 @@ compak allows you to install, manage, and distribute multi-container application
 Inspired by Docker App ([deprecated in 2021](https://github.com/docker/roadmap/issues/209)), compak fills the gap for standardized distribution of Compose applications without the complexity of full orchestration platforms.
 
 
-
-<!-- GETTING STARTED -->
 ## Getting Started
 
 ### Prerequisites
@@ -45,9 +43,6 @@ Inspired by Docker App ([deprecated in 2021](https://github.com/docker/roadmap/i
    ```
 3. The binary will be available in `bin/compak`
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- USAGE EXAMPLES -->
 ## Usage
 
 ### Install a package from a registry
@@ -85,8 +80,6 @@ compak status mypackage
 ```bash
 compak uninstall mypackage
 ```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Package Format
 
