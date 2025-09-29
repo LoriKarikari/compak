@@ -170,10 +170,12 @@ func TestClient_MergeValues(t *testing.T) {
 	mockCmd := &mockComposeCommand{}
 	client := NewClient(mockCmd, tempDir)
 
-	defaults := map[string]string{
-		"port":    "8080",
-		"host":    "localhost",
-		"enabled": "true",
+	pkg := Package{
+		Parameters: map[string]Param{
+			"port":    {Default: "8080"},
+			"host":    {Default: "localhost"},
+			"enabled": {Default: "true"},
+		},
 	}
 
 	overrides := map[string]string{
@@ -181,7 +183,7 @@ func TestClient_MergeValues(t *testing.T) {
 		"env":  "production",
 	}
 
-	result := client.mergeValues(defaults, overrides)
+	result := client.mergeValues(pkg, overrides)
 
 	expected := map[string]string{
 		"port":    "9000",
