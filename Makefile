@@ -5,9 +5,16 @@ help:
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
 
+# Build variables
+VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || git describe --tags 2>/dev/null || echo "dev")
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+LDFLAGS := -X 'github.com/LoriKarikari/compak/internal/cli.version=$(VERSION)' \
+           -X 'github.com/LoriKarikari/compak/internal/cli.commit=$(COMMIT)'
+
 .PHONY: build
 build:
-	go build -o bin/compak cmd/compak/main.go
+	go build -ldflags "$(LDFLAGS)" -o bin/compak cmd/compak/main.go
 
 .PHONY: install
 install: build
@@ -71,11 +78,11 @@ docker-run:
 release:
 	@echo "Building release binaries..."
 	@mkdir -p dist
-	GOOS=linux GOARCH=amd64 go build -o dist/compak-linux-amd64 cmd/compak/main.go
-	GOOS=linux GOARCH=arm64 go build -o dist/compak-linux-arm64 cmd/compak/main.go
-	GOOS=darwin GOARCH=amd64 go build -o dist/compak-darwin-amd64 cmd/compak/main.go
-	GOOS=darwin GOARCH=arm64 go build -o dist/compak-darwin-arm64 cmd/compak/main.go
-	GOOS=windows GOARCH=amd64 go build -o dist/compak-windows-amd64.exe cmd/compak/main.go
+	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/compak-linux-amd64 cmd/compak/main.go
+	GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/compak-linux-arm64 cmd/compak/main.go
+	GOOS=darwin GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/compak-darwin-amd64 cmd/compak/main.go
+	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/compak-darwin-arm64 cmd/compak/main.go
+	GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/compak-windows-amd64.exe cmd/compak/main.go
 	@echo "Release binaries built in dist/"
 
 .PHONY: dev
