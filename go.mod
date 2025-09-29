@@ -3,6 +3,7 @@ module github.com/LoriKarikari/compak
 go 1.24.3
 
 require (
+	github.com/opencontainers/image-spec v1.1.1
 	github.com/samber/lo v1.51.0
 	github.com/spf13/cobra v1.10.1
 	gopkg.in/yaml.v3 v3.0.1
