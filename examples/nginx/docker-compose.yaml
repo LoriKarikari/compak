@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: compak-nginx-${PORT}
+    ports:
+      - "${PORT}:80"
+    environment:
+      - SERVER_NAME=${SERVER_NAME}
+      - MAX_BODY_SIZE=${MAX_BODY_SIZE}
+    restart: unless-stopped
+    labels:
+      - "compak.package=nginx"
+      - "compak.version=1.0.0"

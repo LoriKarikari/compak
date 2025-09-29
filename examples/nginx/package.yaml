@@ -1,0 +1,27 @@
+
+name: nginx
+version: 1.0.0
+description: Simple Nginx web server
+author: Compak Team
+license: MIT
+homepage: https://nginx.org
+repository: https://github.com/LoriKarikari/compak
+
+parameters:
+  PORT:
+    description: Port to expose the nginx service on
+    type: string
+    default: "8080"
+    required: false
+
+  SERVER_NAME:
+    description: Server name for nginx configuration
+    type: string
+    default: "localhost"
+    required: false
+
+  MAX_BODY_SIZE:
+    description: Maximum allowed size of the client request body
+    type: string
+    default: "10m"
+    required: false
