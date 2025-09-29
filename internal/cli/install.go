@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	"github.com/LoriKarikari/compak/internal/config"
@@ -72,47 +73,17 @@ Parameters can be customized using the --set flag, which accepts key=value pairs
 		client := pkg.NewClient(composeCmd, stateDir)
 		manager := pkg.NewManager(client, composeCmd, stateDir)
 
-		var packageToInstall *pkg.Package
-		var sourcePath string
+		packageToInstall, sourcePath, err := loadPackage(packageName, version, localPath, manager)
+		if err != nil {
+			return err
+		}
 
-		if localPath != "" {
-			packageToInstall, err = manager.LoadPackageFromDir(localPath)
-			if err != nil {
-				return fmt.Errorf("failed to load package from %s: %w", localPath, err)
-			}
-			sourcePath = localPath
-		} else if registry.IsRegistryReference(packageName) {
-			fmt.Printf("Pulling package from registry: %s\n", packageName)
-
-			registryClient := registry.NewClient()
-			tempDir := filepath.Join(os.TempDir(), "compak-pull", fmt.Sprintf("%d", os.Getpid()))
+		if sourcePath != "" && registry.IsRegistryReference(packageName) {
 			defer func() {
-				if err := os.RemoveAll(tempDir); err != nil {
+				if err := os.RemoveAll(sourcePath); err != nil {
 					fmt.Printf("Warning: failed to clean up temp directory: %v\n", err)
 				}
 			}()
-
-			if err := registryClient.Pull(context.Background(), packageName, tempDir); err != nil {
-				return fmt.Errorf("failed to pull package: %w", err)
-			}
-
-			packageToInstall, err = manager.LoadPackageFromDir(tempDir)
-			if err != nil {
-				return fmt.Errorf("failed to load pulled package: %w", err)
-			}
-			sourcePath = tempDir
-		} else {
-			packageToInstall = &pkg.Package{
-				Name:        packageName,
-				Version:     version,
-				Description: "Local package",
-				Parameters:  make(map[string]pkg.Param),
-				Values:      make(map[string]string),
-			}
-
-			if version == "" {
-				packageToInstall.Version = "latest"
-			}
 		}
 
 		if existingPkg, err := client.GetInstalledPackage(packageToInstall.Name); err == nil {
@@ -124,32 +95,9 @@ Parameters can be customized using the --set flag, which accepts key=value pairs
 
 		fmt.Printf("Installing package: %s@%s\n", packageToInstall.Name, packageToInstall.Version)
 
-		if len(packageToInstall.Parameters) > 0 {
-			fmt.Println("\nAvailable parameters:")
-			for name, param := range packageToInstall.Parameters {
-				defaultValue := param.Default
-				if packageToInstall.Values != nil {
-					if override, exists := packageToInstall.Values[name]; exists {
-						defaultValue = override
-					}
-				}
-				required := ""
-				if param.Required {
-					required = " (required)"
-				}
-				fmt.Printf("  %s=%s%s - %s\n", name, defaultValue, required, param.Description)
-			}
-			fmt.Println()
-		}
+		displayPackageInfo(packageToInstall)
 
-		values := make(map[string]string)
-		for _, v := range setValues {
-			parts := strings.SplitN(v, "=", 2)
-			if len(parts) == 2 {
-				values[parts[0]] = parts[1]
-				fmt.Printf("Setting %s=%s\n", parts[0], parts[1])
-			}
-		}
+		values := parseSetValues(setValues)
 
 		if sourcePath != "" {
 			return manager.DeployFromPath(*packageToInstall, values, sourcePath)
@@ -157,6 +105,80 @@ Parameters can be customized using the --set flag, which accepts key=value pairs
 
 		return manager.Deploy(*packageToInstall, values)
 	},
+}
+
+func loadPackage(packageName, version, localPath string, manager *pkg.Manager) (*pkg.Package, string, error) {
+	if localPath != "" {
+		packageToInstall, err := manager.LoadPackageFromDir(localPath)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to load package from %s: %w", localPath, err)
+		}
+		return packageToInstall, localPath, nil
+	}
+
+	if registry.IsRegistryReference(packageName) {
+		fmt.Printf("Pulling package from registry: %s\n", packageName)
+
+		registryClient := registry.NewClient()
+		tempDir := filepath.Join(os.TempDir(), "compak-pull", fmt.Sprintf("%d", os.Getpid()))
+
+		if err := registryClient.Pull(context.Background(), packageName, tempDir); err != nil {
+			return nil, "", fmt.Errorf("failed to pull package: %w", err)
+		}
+
+		packageToInstall, err := manager.LoadPackageFromDir(tempDir)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to load pulled package: %w", err)
+		}
+		return packageToInstall, tempDir, nil
+	}
+
+	packageToInstall := &pkg.Package{
+		Name:        packageName,
+		Version:     version,
+		Description: "Local package",
+		Parameters:  make(map[string]pkg.Param),
+		Values:      make(map[string]string),
+	}
+
+	if version == "" {
+		packageToInstall.Version = "latest"
+	}
+
+	return packageToInstall, "", nil
+}
+
+func displayPackageInfo(pkg *pkg.Package) {
+	if len(pkg.Parameters) > 0 {
+		fmt.Println("\nAvailable parameters:")
+		for name, param := range pkg.Parameters {
+			defaultValue := param.Default
+			if pkg.Values != nil {
+				if override, exists := pkg.Values[name]; exists {
+					defaultValue = override
+				}
+			}
+			required := ""
+			if param.Required {
+				required = " (required)"
+			}
+			fmt.Printf("  %s=%s%s - %s\n", name, defaultValue, required, param.Description)
+		}
+		fmt.Println()
+	}
+}
+
+func parseSetValues(setValues []string) map[string]string {
+	parsed := lo.FilterMap(setValues, func(v string, _ int) (lo.Entry[string, string], bool) {
+		parts := strings.SplitN(v, "=", 2)
+		if len(parts) == 2 {
+			fmt.Printf("Setting %s=%s\n", parts[0], parts[1])
+			return lo.Entry[string, string]{Key: parts[0], Value: parts[1]}, true
+		}
+		return lo.Entry[string, string]{}, false
+	})
+
+	return lo.FromEntries(parsed)
 }
 
 func init() {
