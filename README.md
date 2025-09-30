@@ -2,7 +2,7 @@
 
 <br />
 <div align="center">
-  <h3 align="center">compak</h3>
+  <h1 align="center">compak 🎒</h1>
 
   <p align="center">
     <a href="https://github.com/LoriKarikari/compak/actions/workflows/ci.yml">
@@ -34,7 +34,7 @@
 
 ## About The Project
 
-Compak allows you to install, manage, and distribute multi-container applications using Docker Compose. Packages are stored in OCI registries like GitHub Container Registry or Docker Hub.
+Compak allows you to install, manage, and distribute multi-container applications using Compose.
 
 Inspired by Docker App ([deprecated in 2021](https://github.com/docker/roadmap/issues/209)), compak fills the gap for standardized distribution of Compose applications without the complexity of full orchestration platforms.
 
@@ -156,3 +156,4 @@ compak publish ghcr.io/user/package:version
 * [Docker App retrospective](https://github.com/docker/roadmap/issues/209) - Inspiration for this solution
 * [OCI Artifacts specification](https://github.com/opencontainers/artifacts) - Foundation for package storage
 * [oras-project](https://github.com/oras-project/oras-go) - OCI registry client library
+* [Porter](https://github.com/getporter/porter) - Demonstrated patterns for package management
