@@ -1,8 +1,10 @@
 package pkg
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,16 +16,16 @@ import (
 )
 
 type Manager struct {
-	client      *Client
-	composeCmd  *compose.ComposeCommand
-	packagesDir string
+	client        *Client
+	composeClient *compose.Client
+	packagesDir   string
 }
 
-func NewManager(client *Client, composeCmd *compose.ComposeCommand, stateDir string) *Manager {
+func NewManager(client *Client, composeClient *compose.Client, stateDir string) *Manager {
 	return &Manager{
-		client:      client,
-		composeCmd:  composeCmd,
-		packagesDir: filepath.Join(stateDir, "packages"),
+		client:        client,
+		composeClient: composeClient,
+		packagesDir:   filepath.Join(stateDir, "packages"),
 	}
 }
 
@@ -67,8 +69,21 @@ func (m *Manager) DeployFromPath(pkg Package, values map[string]string, sourcePa
 		return err
 	}
 
+	ctx := context.Background()
+	projectName := fmt.Sprintf("compak-%s", pkg.Name)
+
+	project, err := m.composeClient.LoadProject(packageDir, projectName)
+	if err != nil {
+		return fmt.Errorf("failed to load compose project: %w", err)
+	}
+
 	fmt.Printf("Deploying %s...\n", pkg.Name)
-	if err := m.composeCmd.ExecuteIn(packageDir, "up", "-d"); err != nil {
+
+	if err := m.composeClient.Pull(ctx, project); err != nil {
+		fmt.Printf("Warning: failed to pull images: %v\n", err)
+	}
+
+	if err := m.composeClient.Up(ctx, project, true, nil); err != nil {
 		return fmt.Errorf("failed to start services: %w", err)
 	}
 
@@ -118,18 +133,25 @@ func (m *Manager) Stop(packageName string) error {
 	}
 
 	packageDir := filepath.Join(m.packagesDir, packageName)
+	dirExists := true
 	if _, err := os.Stat(packageDir); os.IsNotExist(err) {
-		return fmt.Errorf("package directory not found: %s", packageDir)
+		fmt.Printf("Warning: package directory not found, cleaning up metadata only\n")
+		dirExists = false
 	}
 
-	fmt.Printf("Stopping %s...\n", packageName)
-	if err := m.composeCmd.ExecuteIn(packageDir, "down"); err != nil {
-		return fmt.Errorf("failed to stop services: %w", err)
-	}
+	if dirExists {
+		ctx := context.Background()
+		projectName := fmt.Sprintf("compak-%s", packageName)
 
-	fmt.Printf("Cleaning up %s...\n", packageName)
-	if err := os.RemoveAll(packageDir); err != nil {
-		fmt.Printf("Warning: failed to remove package directory: %v\n", err)
+		fmt.Printf("Stopping %s...\n", packageName)
+		if err := m.composeClient.Down(ctx, projectName); err != nil {
+			return fmt.Errorf("failed to stop services: %w", err)
+		}
+
+		fmt.Printf("Cleaning up %s...\n", packageName)
+		if err := os.RemoveAll(packageDir); err != nil {
+			fmt.Printf("Warning: failed to remove package directory: %v\n", err)
+		}
 	}
 
 	return m.client.Uninstall(installedPkg.Package.Name)
@@ -145,41 +167,74 @@ func (m *Manager) Status(packageName string) (string, error) {
 		return "", fmt.Errorf("package not found")
 	}
 
-	output, err := m.composeCmd.ExecuteQuiet(packageDir, "ps")
+	ctx := context.Background()
+	projectName := fmt.Sprintf("compak-%s", packageName)
+
+	containers, err := m.composeClient.PS(ctx, projectName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get status: %w", err)
+	}
+
+	var output string
+	for _, container := range containers {
+		output += fmt.Sprintf("%s\t%s\t%s\n",
+			container.Name,
+			container.State,
+			container.Status,
+		)
 	}
 
 	return output, nil
 }
 
-func (m *Manager) LoadPackageFromDir(dir string) (*Package, error) {
+func (m *Manager) LoadPackageFromDir(dir string) (result *Package, err error) {
 	if err := validatePath(dir); err != nil {
 		return nil, fmt.Errorf("invalid directory path: %w", err)
 	}
 
-	packageFile := filepath.Join(dir, "package.yaml")
-	data, err := os.ReadFile(packageFile)
+	root, err := os.OpenRoot(dir)
 	if err != nil {
-		packageFile = filepath.Join(dir, "package.json")
-		data, err = os.ReadFile(packageFile)
-		if err != nil {
-			return nil, fmt.Errorf("package.yaml or package.json not found")
+		return nil, fmt.Errorf("failed to create root: %w", err)
+	}
+	defer func() {
+		if closeErr := root.Close(); closeErr != nil && err == nil {
+			err = closeErr
 		}
+	}()
 
-		var pkg Package
-		if err := json.Unmarshal(data, &pkg); err != nil {
-			return nil, fmt.Errorf("failed to parse package.json: %w", err)
-		}
-		return &pkg, nil
+	if pkg, err := m.loadPackageFile(root, "package.yaml", yaml.Unmarshal); err == nil {
+		return pkg, nil
 	}
 
-	var pkg Package
-	if err := yaml.Unmarshal(data, &pkg); err != nil {
-		return nil, fmt.Errorf("failed to parse package.yaml: %w", err)
+	if pkg, err := m.loadPackageFile(root, "package.json", json.Unmarshal); err == nil {
+		return pkg, nil
 	}
 
-	return &pkg, nil
+	return nil, fmt.Errorf("package.yaml or package.json not found")
+}
+
+func (m *Manager) loadPackageFile(root *os.Root, filename string, unmarshal func([]byte, interface{}) error) (pkg *Package, err error) {
+	file, err := root.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", filename, err)
+	}
+
+	var p Package
+	if err := unmarshal(data, &p); err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %w", filename, err)
+	}
+
+	return &p, nil
 }
 
 func (m *Manager) writeComposeFile(path string, _ Package) error {
@@ -197,8 +252,35 @@ services:
 	return os.WriteFile(path, []byte(composeContent), 0o600)
 }
 
-func copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
+func copyFile(src, dst string) (err error) {
+	if err := validatePath(src); err != nil {
+		return fmt.Errorf("invalid source path: %w", err)
+	}
+	if err := validatePath(dst); err != nil {
+		return fmt.Errorf("invalid destination path: %w", err)
+	}
+
+	srcRoot, err := os.OpenRoot(filepath.Dir(src))
+	if err != nil {
+		return fmt.Errorf("failed to create source root: %w", err)
+	}
+	defer func() {
+		if closeErr := srcRoot.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	file, err := srcRoot.Open(filepath.Base(src))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	data, err := io.ReadAll(file)
 	if err != nil {
 		return err
 	}
