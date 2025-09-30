@@ -31,7 +31,7 @@ func (e *Engine) WriteEnvFile(packageDir string) error {
 	for _, k := range keys {
 		v := e.values[k]
 		if strings.Contains(v, "\n") || strings.Contains(v, "\"") {
-			v = fmt.Sprintf("%q", strings.ReplaceAll(v, "\"", "\\\""))
+			v = fmt.Sprintf("%q", v)
 		}
 		lines = append(lines, fmt.Sprintf("%s=%s", k, v))
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -50,6 +51,11 @@ func publishPackage(reference, packagePath string) error {
 	}
 	if _, err := os.Stat(composeFile); os.IsNotExist(err) {
 		return fmt.Errorf("docker-compose.yaml not found in %s", absPath)
+	}
+
+	cleanPackageFile := filepath.Clean(packageFile)
+	if !strings.HasPrefix(cleanPackageFile, absPath+string(filepath.Separator)) && cleanPackageFile != absPath {
+		return fmt.Errorf("package file path outside directory")
 	}
 
 	data, err := os.ReadFile(packageFile)
