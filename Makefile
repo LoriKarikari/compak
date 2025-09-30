@@ -42,6 +42,14 @@ lint:
 	fi
 	golangci-lint run ./...
 
+.PHONY: gosec
+gosec:
+	@if ! which gosec > /dev/null; then \
+		echo "gosec not found, installing..."; \
+		go install github.com/securego/gosec/v2/cmd/gosec@latest; \
+	fi
+	gosec ./...
+
 .PHONY: fmt
 fmt:
 	go fmt ./...
@@ -61,7 +69,7 @@ clean:
 	rm -rf bin/ dist/ coverage.* *.test
 
 .PHONY: check
-check: fmt vet lint test
+check: fmt vet lint gosec test
 
 .PHONY: ci
 ci: mod check build
