@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LoriKarikari/compak/internal/config"
-	"github.com/LoriKarikari/compak/internal/core/compose"
 	pkg "github.com/LoriKarikari/compak/internal/core/package"
 )
 
@@ -16,17 +15,12 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List installed packages",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		composeCmd, err := compose.DetectComposeCommand()
-		if err != nil {
-			return fmt.Errorf("failed to detect compose command: %w", err)
-		}
-
 		stateDir, err := config.GetStateDir()
 		if err != nil {
 			return fmt.Errorf("failed to get state directory: %w", err)
 		}
 
-		client := pkg.NewClient(composeCmd, stateDir)
+		client := pkg.NewClient(stateDir)
 
 		packages, err := client.List()
 		if err != nil {

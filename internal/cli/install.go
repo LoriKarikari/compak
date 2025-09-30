@@ -58,20 +58,18 @@ Parameters can be customized using the --set flag, which accepts key=value pairs
 			return fmt.Errorf("failed to get set flag: %w", err)
 		}
 
-		composeCmd, err := compose.DetectComposeCommand()
+		composeClient, err := compose.NewClient()
 		if err != nil {
-			return fmt.Errorf("failed to detect compose command: %w", err)
+			return fmt.Errorf("failed to create compose client: %w", err)
 		}
-
-		fmt.Printf("Using compose command: %s\n", composeCmd.String())
 
 		stateDir, err := config.GetStateDir()
 		if err != nil {
 			return fmt.Errorf("failed to get state directory: %w", err)
 		}
 
-		client := pkg.NewClient(composeCmd, stateDir)
-		manager := pkg.NewManager(client, composeCmd, stateDir)
+		client := pkg.NewClient(stateDir)
+		manager := pkg.NewManager(client, composeClient, stateDir)
 
 		packageToInstall, sourcePath, err := loadPackage(packageName, version, localPath, manager)
 		if err != nil {

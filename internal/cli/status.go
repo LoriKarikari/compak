@@ -26,9 +26,9 @@ using the underlying compose command (docker compose ps or similar).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		packageName := args[0]
 
-		composeCmd, err := compose.DetectComposeCommand()
+		composeClient, err := compose.NewClient()
 		if err != nil {
-			return fmt.Errorf("failed to detect compose command: %w", err)
+			return fmt.Errorf("failed to create compose client: %w", err)
 		}
 
 		stateDir, err := config.GetStateDir()
@@ -36,8 +36,8 @@ using the underlying compose command (docker compose ps or similar).`,
 			return fmt.Errorf("failed to get state directory: %w", err)
 		}
 
-		client := pkg.NewClient(composeCmd, stateDir)
-		manager := pkg.NewManager(client, composeCmd, stateDir)
+		client := pkg.NewClient(stateDir)
+		manager := pkg.NewManager(client, composeClient, stateDir)
 
 		if _, err := client.GetInstalledPackage(packageName); err != nil {
 			return fmt.Errorf("package '%s' is not installed", packageName)
