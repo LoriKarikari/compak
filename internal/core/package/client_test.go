@@ -4,23 +4,9 @@ import (
 	"testing"
 )
 
-type mockComposeCommand struct {
-	executed [][]string
-}
-
-func (m *mockComposeCommand) Execute(args ...string) error {
-	m.executed = append(m.executed, args)
-	return nil
-}
-
-func (m *mockComposeCommand) String() string {
-	return "mock-compose"
-}
-
 func TestClient_Install(t *testing.T) {
 	tempDir := t.TempDir()
-	mockCmd := &mockComposeCommand{}
-	client := NewClient(mockCmd, tempDir)
+	client := NewClient(tempDir)
 
 	pkg := Package{
 		Name:        "test-package",
@@ -69,8 +55,7 @@ func TestClient_Install(t *testing.T) {
 
 func TestClient_Uninstall(t *testing.T) {
 	tempDir := t.TempDir()
-	mockCmd := &mockComposeCommand{}
-	client := NewClient(mockCmd, tempDir)
+	client := NewClient(tempDir)
 
 	pkg := Package{
 		Name:    "test-package",
@@ -99,8 +84,7 @@ func TestClient_Uninstall(t *testing.T) {
 
 func TestClient_List_Empty(t *testing.T) {
 	tempDir := t.TempDir()
-	mockCmd := &mockComposeCommand{}
-	client := NewClient(mockCmd, tempDir)
+	client := NewClient(tempDir)
 
 	packages, err := client.List()
 	if err != nil {
@@ -114,8 +98,7 @@ func TestClient_List_Empty(t *testing.T) {
 
 func TestClient_ValidateParameters(t *testing.T) {
 	tempDir := t.TempDir()
-	mockCmd := &mockComposeCommand{}
-	client := NewClient(mockCmd, tempDir)
+	client := NewClient(tempDir)
 
 	params := map[string]Param{
 		"required_param": {
@@ -167,8 +150,7 @@ func TestClient_ValidateParameters(t *testing.T) {
 
 func TestClient_MergeValues(t *testing.T) {
 	tempDir := t.TempDir()
-	mockCmd := &mockComposeCommand{}
-	client := NewClient(mockCmd, tempDir)
+	client := NewClient(tempDir)
 
 	pkg := Package{
 		Parameters: map[string]Param{

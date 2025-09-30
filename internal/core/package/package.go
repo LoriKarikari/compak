@@ -31,11 +31,5 @@ type InstalledPackage struct {
 }
 
 type Client struct {
-	composeCmd ComposeCommand
-	stateDir   string
-}
-
-type ComposeCommand interface {
-	Execute(args ...string) error
-	String() string
+	stateDir string
 }

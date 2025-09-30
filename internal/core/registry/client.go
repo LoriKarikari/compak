@@ -49,7 +49,7 @@ func (c *Client) Pull(ctx context.Context, reference, destDir string) error {
 	}
 	defer func() {
 		if closeErr := fs.Close(); closeErr != nil {
-			fmt.Printf("Warning: failed to close file store: %v\n", closeErr)
+			fmt.Fprintf(os.Stderr, "Warning: failed to close file store: %v\n", closeErr)
 		}
 	}()
 
@@ -104,15 +104,18 @@ func (c *Client) extractFiles(ctx context.Context, fs *file.Store, tag, destDir 
 		return fmt.Errorf("failed to parse manifest: %w", err)
 	}
 
-	errs := lo.Map(manifest.Layers, func(layer ocispec.Descriptor, _ int) error {
-		return c.processLayer(layer, destDir)
-	})
-	return lo.Reduce(errs, func(acc error, err error, _ int) error {
-		if acc != nil {
-			return acc
+	var errors []error
+	for _, layer := range manifest.Layers {
+		if err := c.processLayer(layer, destDir); err != nil {
+			errors = append(errors, err)
 		}
-		return err
-	}, nil)
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to process %d layer(s): %v", len(errors), errors[0])
+	}
+
+	return nil
 }
 
 func (c *Client) processLayer(layer ocispec.Descriptor, destDir string) error {
@@ -121,9 +124,14 @@ func (c *Client) processLayer(layer ocispec.Descriptor, destDir string) error {
 		return nil
 	}
 
+	cleanPath := filepath.Clean(layerPath)
+	if !strings.HasPrefix(cleanPath, filepath.Clean(destDir)) {
+		return fmt.Errorf("layer path outside destination directory")
+	}
+
 	content, err := os.ReadFile(layerPath)
 	if err != nil {
-		return nil
+		return fmt.Errorf("failed to read layer %s: %w", layerPath, err)
 	}
 
 	filename := getFilenameFromMediaType(layer.MediaType)
@@ -151,8 +159,16 @@ func getFilenameFromMediaType(mediaType string) string {
 }
 
 func (c *Client) Push(ctx context.Context, sourceDir, reference string) error {
-	packageFile := filepath.Join(sourceDir, packageYAML)
-	composeFile := filepath.Join(sourceDir, dockerComposeYAML)
+	cleanSourceDir := filepath.Clean(sourceDir)
+	packageFile := filepath.Join(cleanSourceDir, packageYAML)
+	composeFile := filepath.Join(cleanSourceDir, dockerComposeYAML)
+
+	if !strings.HasPrefix(filepath.Clean(packageFile), cleanSourceDir) {
+		return fmt.Errorf("package file path outside source directory")
+	}
+	if !strings.HasPrefix(filepath.Clean(composeFile), cleanSourceDir) {
+		return fmt.Errorf("compose file path outside source directory")
+	}
 
 	packageData, err := os.ReadFile(packageFile)
 	if err != nil {
@@ -217,15 +233,15 @@ func (c *Client) Push(ctx context.Context, sourceDir, reference string) error {
 func cleanupFiles(destDir string) {
 	blobsDir := filepath.Join(destDir, "blobs")
 	if err := os.RemoveAll(blobsDir); err != nil {
-		fmt.Printf(warningFmt, blobsDir, err)
+		fmt.Fprintf(os.Stderr, warningFmt, blobsDir, err)
 	}
 	indexFile := filepath.Join(destDir, "index.json")
 	if err := os.Remove(indexFile); err != nil && !os.IsNotExist(err) {
-		fmt.Printf(warningFmt, indexFile, err)
+		fmt.Fprintf(os.Stderr, warningFmt, indexFile, err)
 	}
 	layoutFile := filepath.Join(destDir, "oci-layout")
 	if err := os.Remove(layoutFile); err != nil && !os.IsNotExist(err) {
-		fmt.Printf(warningFmt, layoutFile, err)
+		fmt.Fprintf(os.Stderr, warningFmt, layoutFile, err)
 	}
 }
 
@@ -248,11 +264,11 @@ func getGitHubCredential(registry string) auth.Credential {
 	}
 
 	token := os.Getenv("GITHUB_TOKEN")
-	if token == "" {
+	username := os.Getenv("GITHUB_USER")
+
+	if token == "" || username == "" {
 		return auth.EmptyCredential
 	}
-
-	username := lo.Ternary(os.Getenv("GITHUB_USER") != "", os.Getenv("GITHUB_USER"), "LoriKarikari")
 
 	fmt.Printf("Using GITHUB_TOKEN for authentication\n")
 	return auth.Credential{
@@ -276,18 +292,33 @@ func getDockerConfigCredential(registry string) (auth.Credential, error) {
 }
 
 func getDockerConfigPath() string {
-	return lo.Ternary(
-		os.Getenv("DOCKER_CONFIG") != "",
-		filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json"),
-		lo.Must(func() (string, error) {
-			homeDir, err := os.UserHomeDir()
-			return lo.Ternary(err == nil, filepath.Join(homeDir, ".docker", "config.json"), ""), nil
-		}()),
-	)
+	if dockerConfig := os.Getenv("DOCKER_CONFIG"); dockerConfig != "" {
+		return filepath.Join(dockerConfig, "config.json")
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+
+	return filepath.Join(homeDir, ".docker", "config.json")
 }
 
 func loadDockerConfig(configFile string) (DockerConfig, error) {
 	var config DockerConfig
+
+	cleanPath := filepath.Clean(configFile)
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		dockerDir := filepath.Join(homeDir, ".docker")
+		if !strings.HasPrefix(cleanPath, dockerDir) {
+			dockerConfigDir := os.Getenv("DOCKER_CONFIG")
+			if dockerConfigDir == "" || !strings.HasPrefix(cleanPath, filepath.Clean(dockerConfigDir)) {
+				return config, fmt.Errorf("config file outside docker directory")
+			}
+		}
+	}
+
 	data, err := os.ReadFile(configFile)
 	if err != nil {
 		return config, err

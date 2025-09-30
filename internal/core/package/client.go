@@ -3,6 +3,7 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,11 +13,39 @@ import (
 	"github.com/samber/lo"
 )
 
-func NewClient(composeCmd ComposeCommand, stateDir string) *Client {
+func NewClient(stateDir string) *Client {
 	return &Client{
-		composeCmd: composeCmd,
-		stateDir:   stateDir,
+		stateDir: stateDir,
 	}
+}
+
+func (c *Client) safeReadFile(path string) (data []byte, err error) {
+	root, err := os.OpenRoot(c.stateDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create root: %w", err)
+	}
+	defer func() {
+		if closeErr := root.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	relPath, err := filepath.Rel(c.stateDir, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get relative path: %w", err)
+	}
+
+	file, err := root.Open(relPath)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	return io.ReadAll(file)
 }
 
 func (c *Client) Install(pkg Package, values map[string]string) error {
@@ -69,7 +98,7 @@ func (c *Client) List() ([]InstalledPackage, error) {
 		return []InstalledPackage{}, nil
 	}
 
-	data, err := os.ReadFile(stateFile)
+	data, err := c.safeReadFile(stateFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read state file: %w", err)
 	}
@@ -162,7 +191,7 @@ func (c *Client) saveInstalledPackage(pkg InstalledPackage) error {
 	stateFile := filepath.Join(c.stateDir, "installed.json")
 
 	var state map[string]InstalledPackage
-	if data, err := os.ReadFile(stateFile); err == nil {
+	if data, err := c.safeReadFile(stateFile); err == nil {
 		if err := json.Unmarshal(data, &state); err != nil {
 			return fmt.Errorf("failed to parse existing state file: %w", err)
 		}
@@ -183,7 +212,7 @@ func (c *Client) saveInstalledPackage(pkg InstalledPackage) error {
 
 func (c *Client) GetInstalledPackage(name string) (InstalledPackage, error) {
 	stateFile := filepath.Join(c.stateDir, "installed.json")
-	data, err := os.ReadFile(stateFile)
+	data, err := c.safeReadFile(stateFile)
 	if err != nil {
 		return InstalledPackage{}, err
 	}
@@ -211,7 +240,7 @@ func (c *Client) GetInstalledPackage(name string) (InstalledPackage, error) {
 
 func (c *Client) removeInstalledPackage(name string) error {
 	stateFile := filepath.Join(c.stateDir, "installed.json")
-	data, err := os.ReadFile(stateFile)
+	data, err := c.safeReadFile(stateFile)
 	if err != nil {
 		return err
 	}
