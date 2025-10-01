@@ -1,0 +1,17 @@
+name: demo-nextcloud
+description: Demo Nextcloud setup with Redis and PostgreSQL - basic example package for testing
+maintainer: compak-dev
+source: https://github.com/LoriKarikari/compak
+homepage: https://nextcloud.com
+tags:
+  - demo
+  - example
+  - storage
+verified: false
+versions:
+  - version: 30.0.0
+    created: 2025-01-15T00:00:00Z
+    services:
+      - nextcloud
+      - db
+      - redis

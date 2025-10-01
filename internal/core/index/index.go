@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	defaultRepoURL = "https://github.com/LoriKarikari/compak.git"
-	paksSubdir     = "paks"
+	defaultRepoURL    = "https://github.com/LoriKarikari/compak.git"
+	defaultPaksSubdir = "paks"
 )
 
 type Index struct {
@@ -57,10 +57,11 @@ type SearchResult struct {
 }
 
 type Client struct {
-	repoURL   string `validate:"required,url,startswith=https://"`
-	repoPath  string `validate:"required,dirpath"`
-	cache     *Index
-	validator *validator.Validate
+	repoURL    string `validate:"required,url,startswith=https://"`
+	repoPath   string `validate:"required,dirpath"`
+	paksSubdir string `validate:"required"`
+	cache      *Index
+	validator  *validator.Validate
 }
 
 func NewClient() *Client {
@@ -70,10 +71,21 @@ func NewClient() *Client {
 	}
 	repoPath := filepath.Join(homeDir, ".compak", "index")
 
+	repoURL := os.Getenv("COMPAK_INDEX_REPO")
+	if repoURL == "" {
+		repoURL = defaultRepoURL
+	}
+
+	paksSubdir := os.Getenv("COMPAK_INDEX_PATH")
+	if paksSubdir == "" {
+		paksSubdir = defaultPaksSubdir
+	}
+
 	return &Client{
-		repoURL:   defaultRepoURL,
-		repoPath:  repoPath,
-		validator: validator.New(),
+		repoURL:    repoURL,
+		repoPath:   repoPath,
+		paksSubdir: paksSubdir,
+		validator:  validator.New(),
 	}
 }
 
@@ -141,7 +153,7 @@ func (c *Client) updateIndex(ctx context.Context) error {
 	}
 
 	paks := make(map[string]PakMetadata)
-	paksPath := filepath.Join(c.repoPath, paksSubdir)
+	paksPath := filepath.Join(c.repoPath, c.paksSubdir)
 
 	if _, err := os.Stat(paksPath); err == nil {
 		if err := c.loadLocalPaks(paks, paksPath); err != nil {
