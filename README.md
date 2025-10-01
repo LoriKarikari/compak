@@ -97,6 +97,18 @@ compak status mypackage
 compak uninstall mypackage
 ```
 
+### Search for packages
+
+```bash
+compak search [package]
+```
+
+### Update package index
+
+```bash
+compak update
+```
+
 ## Package Format
 
 A compak package consists of two files:
@@ -140,6 +152,26 @@ export GITHUB_TOKEN=your_token_here
 compak publish ghcr.io/user/package:version
 ```
 
+## Environment Variables
+
+Compak supports the following environment variables for configuration:
+
+* `COMPAK_INDEX_REPO` - Override the default package index repository (default: `https://github.com/LoriKarikari/compak.git`)
+* `COMPAK_INDEX_PATH` - Override the package index subdirectory path (default: `paks`)
+* `GITHUB_TOKEN` - GitHub personal access token for authenticating with GitHub Container Registry
+
+### Testing with Local Package Index
+
+For testing or development, you can point compak to a custom package index:
+
+```bash
+# Use test fixtures
+COMPAK_INDEX_PATH=test/fixtures/paks compak search demo
+
+# Use a different repository
+COMPAK_INDEX_REPO=https://github.com/myorg/myindex.git compak update
+```
+
 ## Roadmap
 
 - [x] Basic CLI with install/uninstall/list commands
@@ -148,8 +180,29 @@ compak publish ghcr.io/user/package:version
 - [x] Parameter substitution
 - [x] Local state tracking
 - [x] Package publishing command
-- [ ] Package search functionality
+- [x] Package search functionality
+- [x] Package index management
+- [ ] Package update command (upgrade installed packages)
 - [ ] Installation scripts (brew, apt, binary releases)
+- [ ] Version constraints and dependency resolution
+- [ ] Package verification and signatures
+
+## Contributing
+
+### Test Fixtures
+
+Compak includes test package fixtures in `test/fixtures/paks/` for testing the package index functionality. These demo packages follow the same pattern as Homebrew's test fixtures:
+
+* `demo-wordpress.yaml` - Example WordPress setup
+* `demo-nextcloud.yaml` - Example Nextcloud setup
+
+To test with fixtures:
+
+```bash
+COMPAK_INDEX_PATH=test/fixtures/paks compak search demo
+```
+
+These fixtures are clearly labeled as demo packages and are not meant for production use.
 
 ## Acknowledgments
 
