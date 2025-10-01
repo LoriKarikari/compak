@@ -291,3 +291,35 @@ func (c *Client) ListPaks(ctx context.Context) ([]string, error) {
 
 	return lo.Keys(c.cache.Paks), nil
 }
+
+func (c *Client) LoadPackageFromIndex(ctx context.Context, name string) ([]byte, error) {
+	if err := c.ensureRepo(ctx); err != nil {
+		return nil, fmt.Errorf("failed to ensure repo: %w", err)
+	}
+
+	pakPath := filepath.Join(c.repoPath, c.paksSubdir, name+".yaml")
+
+	root, err := os.OpenRoot(c.repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create root: %w", err)
+	}
+	defer root.Close()
+
+	relPath, err := filepath.Rel(c.repoPath, pakPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get relative path: %w", err)
+	}
+
+	file, err := root.Open(relPath)
+	if err != nil {
+		return nil, fmt.Errorf("package %s not found in index", name)
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read package: %w", err)
+	}
+
+	return data, nil
+}

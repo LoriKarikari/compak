@@ -1,0 +1,34 @@
+name: immich
+version: 1.144.1
+description: Self-hosted photo and video backup solution (Google Photos alternative)
+author: immich-app
+homepage: https://immich.app
+repository: https://github.com/immich-app/immich
+source: https://raw.githubusercontent.com/immich-app/immich/main/docker/docker-compose.yml
+
+parameters:
+  port:
+    type: integer
+    default: "2283"
+    description: "Port to expose Immich on"
+
+  POSTGRES_PASSWORD:
+    type: string
+    required: true
+    description: "PostgreSQL database password"
+
+  UPLOAD_LOCATION:
+    type: string
+    default: "./library"
+    description: "Directory where uploaded photos/videos are stored"
+
+  DB_DATA_LOCATION:
+    type: string
+    default: "./postgres"
+    description: "Directory where database files are stored"
+
+  IMMICH_VERSION:
+    type: string
+    default: "release"
+    description: "Immich version to use (release, v1.144.1, etc.)"
+n

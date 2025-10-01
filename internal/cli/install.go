@@ -9,9 +9,11 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"github.com/LoriKarikari/compak/internal/config"
 	"github.com/LoriKarikari/compak/internal/core/compose"
+	"github.com/LoriKarikari/compak/internal/core/index"
 	pkg "github.com/LoriKarikari/compak/internal/core/package"
 	"github.com/LoriKarikari/compak/internal/core/registry"
 )
@@ -129,6 +131,17 @@ func loadPackage(packageName, version, localPath string, manager *pkg.Manager) (
 			return nil, "", fmt.Errorf("failed to load pulled package: %w", err)
 		}
 		return packageToInstall, tempDir, nil
+	}
+
+	indexClient := index.NewClient()
+	packageData, err := indexClient.LoadPackageFromIndex(context.Background(), packageName)
+	if err == nil {
+		var packageToInstall pkg.Package
+		if err := yaml.Unmarshal(packageData, &packageToInstall); err != nil {
+			return nil, "", fmt.Errorf("failed to parse package from index: %w", err)
+		}
+		fmt.Printf("Loaded %s from index (source: %s)\n", packageName, packageToInstall.Source)
+		return &packageToInstall, "", nil
 	}
 
 	packageToInstall := &pkg.Package{

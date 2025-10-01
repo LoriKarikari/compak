@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -103,12 +105,18 @@ func (m *Manager) validatePackageAndPath(packageName, sourcePath string) error {
 }
 
 func (m *Manager) setupPackageFiles(packageDir, sourcePath string, pkg Package, mergedValues map[string]string) error {
+	composePath := filepath.Join(packageDir, "docker-compose.yaml")
+
 	if sourcePath != "" {
 		if err := copyDir(sourcePath, packageDir); err != nil {
 			return fmt.Errorf("failed to copy package files: %w", err)
 		}
+	} else if pkg.Source != "" {
+		fmt.Printf("Downloading compose file from %s...\n", pkg.Source)
+		if err := downloadComposeFile(pkg.Source, composePath); err != nil {
+			return fmt.Errorf("failed to download compose file: %w", err)
+		}
 	} else {
-		composePath := filepath.Join(packageDir, "docker-compose.yaml")
 		if err := m.writeComposeFile(composePath, pkg); err != nil {
 			return fmt.Errorf("failed to write compose file: %w", err)
 		}
@@ -250,6 +258,38 @@ services:
 `
 
 	return os.WriteFile(path, []byte(composeContent), 0o600)
+}
+
+func downloadComposeFile(url, destPath string) error {
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to download from %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download from %s: status %d", url, resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var composeCheck map[string]interface{}
+	if err := yaml.Unmarshal(data, &composeCheck); err != nil {
+		return fmt.Errorf("downloaded file is not valid YAML: %w", err)
+	}
+
+	if err := os.WriteFile(destPath, data, 0o600); err != nil {
+		return fmt.Errorf("failed to write compose file: %w", err)
+	}
+
+	return nil
 }
 
 func copyFile(src, dst string) (err error) {
