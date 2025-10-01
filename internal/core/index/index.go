@@ -292,7 +292,7 @@ func (c *Client) ListPaks(ctx context.Context) ([]string, error) {
 	return lo.Keys(c.cache.Paks), nil
 }
 
-func (c *Client) LoadPackageFromIndex(ctx context.Context, name string) ([]byte, error) {
+func (c *Client) LoadPackageFromIndex(ctx context.Context, name string) (data []byte, err error) {
 	if err := c.ensureRepo(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ensure repo: %w", err)
 	}
@@ -303,7 +303,11 @@ func (c *Client) LoadPackageFromIndex(ctx context.Context, name string) ([]byte,
 	if err != nil {
 		return nil, fmt.Errorf("failed to create root: %w", err)
 	}
-	defer root.Close()
+	defer func() {
+		if closeErr := root.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	relPath, err := filepath.Rel(c.repoPath, pakPath)
 	if err != nil {
@@ -314,9 +318,13 @@ func (c *Client) LoadPackageFromIndex(ctx context.Context, name string) ([]byte,
 	if err != nil {
 		return nil, fmt.Errorf("package %s not found in index", name)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
-	data, err := io.ReadAll(file)
+	data, err = io.ReadAll(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read package: %w", err)
 	}

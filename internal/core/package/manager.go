@@ -107,16 +107,17 @@ func (m *Manager) validatePackageAndPath(packageName, sourcePath string) error {
 func (m *Manager) setupPackageFiles(packageDir, sourcePath string, pkg Package, mergedValues map[string]string) error {
 	composePath := filepath.Join(packageDir, "docker-compose.yaml")
 
-	if sourcePath != "" {
+	switch {
+	case sourcePath != "":
 		if err := copyDir(sourcePath, packageDir); err != nil {
 			return fmt.Errorf("failed to copy package files: %w", err)
 		}
-	} else if pkg.Source != "" {
+	case pkg.Source != "":
 		fmt.Printf("Downloading compose file from %s...\n", pkg.Source)
 		if err := downloadComposeFile(pkg.Source, composePath); err != nil {
 			return fmt.Errorf("failed to download compose file: %w", err)
 		}
-	} else {
+	default:
 		if err := m.writeComposeFile(composePath, pkg); err != nil {
 			return fmt.Errorf("failed to write compose file: %w", err)
 		}
@@ -260,16 +261,24 @@ services:
 	return os.WriteFile(path, []byte(composeContent), 0o600)
 }
 
-func downloadComposeFile(url, destPath string) error {
-	client := &http.Client{
-		Timeout: 30 * time.Second,
+func downloadComposeFile(url, destPath string) (err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := client.Get(url)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download from %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to download from %s: status %d", url, resp.StatusCode)
@@ -280,7 +289,7 @@ func downloadComposeFile(url, destPath string) error {
 		return fmt.Errorf("failed to read response: %w", err)
 	}
 
-	var composeCheck map[string]interface{}
+	var composeCheck map[string]any
 	if err := yaml.Unmarshal(data, &composeCheck); err != nil {
 		return fmt.Errorf("downloaded file is not valid YAML: %w", err)
 	}
