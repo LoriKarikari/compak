@@ -28,14 +28,13 @@ type Index struct {
 }
 
 type PakMetadata struct {
-	Name        string       `yaml:"name" validate:"required,alphanum|contains=-|contains=_"`
-	Description string       `yaml:"description" validate:"required,max=500"`
-	Maintainer  string       `yaml:"maintainer" validate:"required"`
-	Source      string       `yaml:"source" validate:"required,url"`
-	Homepage    string       `yaml:"homepage" validate:"omitempty,url"`
-	Versions    []PakVersion `yaml:"versions" validate:"dive"`
-	Tags        []string     `yaml:"tags" validate:"dive,alphanum"`
-	Verified    bool         `yaml:"verified"`
+	Name        string `yaml:"name" validate:"required,alphanum|contains=-|contains=_"`
+	Version     string `yaml:"version" validate:"required"`
+	Description string `yaml:"description" validate:"required,max=500"`
+	Author      string `yaml:"author" validate:"required"`
+	Homepage    string `yaml:"homepage" validate:"omitempty,url"`
+	Repository  string `yaml:"repository" validate:"omitempty,url"`
+	Source      string `yaml:"source" validate:"required,url"`
 }
 
 type PakVersion struct {
@@ -47,13 +46,12 @@ type PakVersion struct {
 }
 
 type SearchResult struct {
-	Name          string
-	Description   string
-	Source        string
-	LatestVersion string
-	Tags          []string
-	Verified      bool
-	Homepage      string
+	Name        string
+	Version     string
+	Description string
+	Author      string
+	Homepage    string
+	Source      string
 }
 
 type Client struct {
@@ -98,28 +96,19 @@ func (c *Client) Search(ctx context.Context, query string, limit int) ([]SearchR
 	results := lo.FilterMap(lo.Values(c.cache.Paks), func(pak PakMetadata, _ int) (SearchResult, bool) {
 		if query != "" {
 			matches := strings.Contains(strings.ToLower(pak.Name), query) ||
-				strings.Contains(strings.ToLower(pak.Description), query) ||
-				lo.SomeBy(pak.Tags, func(tag string) bool {
-					return strings.Contains(strings.ToLower(tag), query)
-				})
+				strings.Contains(strings.ToLower(pak.Description), query)
 			if !matches {
 				return SearchResult{}, false
 			}
 		}
 
-		latestVersion := ""
-		if len(pak.Versions) > 0 {
-			latestVersion = pak.Versions[0].Version
-		}
-
 		return SearchResult{
-			Name:          pak.Name,
-			Description:   pak.Description,
-			Source:        pak.Source,
-			LatestVersion: latestVersion,
-			Tags:          pak.Tags,
-			Verified:      pak.Verified,
-			Homepage:      pak.Homepage,
+			Name:        pak.Name,
+			Version:     pak.Version,
+			Description: pak.Description,
+			Author:      pak.Author,
+			Homepage:    pak.Homepage,
+			Source:      pak.Source,
 		}, true
 	})
 

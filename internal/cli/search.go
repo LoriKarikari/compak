@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -76,22 +75,14 @@ func searchPackages(query string) error {
 }
 
 func displaySearchResult(result index.SearchResult) {
-	fmt.Printf("[%s]", result.Name)
-	if result.Verified {
-		fmt.Printf(" (verified)")
-	}
-	fmt.Println()
+	fmt.Printf("[%s] v%s\n", result.Name, result.Version)
 
 	if result.Description != "" {
 		fmt.Printf("   %s\n", result.Description)
 	}
 
-	if result.LatestVersion != "" {
-		fmt.Printf("   Latest: %s\n", result.LatestVersion)
-	}
-
-	if len(result.Tags) > 0 {
-		fmt.Printf("   Tags: %s\n", strings.Join(result.Tags, ", "))
+	if result.Author != "" {
+		fmt.Printf("   Author: %s\n", result.Author)
 	}
 
 	if result.Homepage != "" {
