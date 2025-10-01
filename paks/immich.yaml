@@ -7,16 +7,6 @@ repository: https://github.com/immich-app/immich
 source: https://raw.githubusercontent.com/immich-app/immich/main/docker/docker-compose.yml
 
 parameters:
-  port:
-    type: integer
-    default: "2283"
-    description: "Port to expose Immich on"
-
-  POSTGRES_PASSWORD:
-    type: string
-    required: true
-    description: "PostgreSQL database password"
-
   UPLOAD_LOCATION:
     type: string
     default: "./library"
@@ -31,3 +21,18 @@ parameters:
     type: string
     default: "release"
     description: "Immich version to use (release, v1.144.1, etc.)"
+
+  DB_PASSWORD:
+    type: string
+    required: true
+    description: "PostgreSQL database password"
+
+  DB_USERNAME:
+    type: string
+    default: "postgres"
+    description: "PostgreSQL database username"
+
+  DB_DATABASE_NAME:
+    type: string
+    default: "immich"
+    description: "PostgreSQL database name"
