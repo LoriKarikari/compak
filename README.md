@@ -61,7 +61,13 @@ Inspired by Docker App ([deprecated in 2021](https://github.com/docker/roadmap/i
 
 ## Usage
 
-### Install a package from a registry
+### Install a package from the index
+
+```bash
+compak install [package]
+```
+
+### Install from OCI registry
 
 ```bash
 compak install ghcr.io/user/package:version
@@ -70,7 +76,7 @@ compak install ghcr.io/user/package:version
 ### Install with custom parameters
 
 ```bash
-compak install ghcr.io/user/package:version --set PORT=9090 --set SERVER_NAME=myserver
+compak install [package] --set PORT=9090 --set DB_PASSWORD=secure
 ```
 
 ### Install from local directory
@@ -111,46 +117,30 @@ compak update
 
 ## Package Format
 
-A compak package consists of two files:
+Compak packages are defined in the package index (`paks/`) and reference upstream Compose files via URL.
 
-* `package.yaml` - Package metadata and parameter definitions
-* `docker-compose.yaml` - Service definitions with variable placeholders
-
-Example `package.yaml`:
+Example package definition (`paks/myapp.yaml`):
 ```yaml
-name: nginx
+name: myapp
 version: 1.0.0
-description: Simple nginx web server
+description: Example application
+author: maintainer-name
+homepage: https://example.com
+repository: https://github.com/example/myapp
+source: https://raw.githubusercontent.com/example/myapp/main/docker-compose.yml
+
 parameters:
   PORT:
-    type: port
+    type: integer
     default: "8080"
-    description: Port to expose nginx on
-    required: false
+    description: Port to expose application on
+  DB_PASSWORD:
+    type: string
+    required: true
+    description: Database password
 ```
 
-Example `docker-compose.yaml`:
-```yaml
-services:
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "${PORT}:80"
-```
-
-## Publishing Packages
-
-Publish packages to OCI registries using the built-in publish command:
-
-```bash
-compak publish ghcr.io/user/package:version --path ./package-directory
-```
-
-For GitHub Container Registry, set your personal access token:
-```bash
-export GITHUB_TOKEN=your_token_here
-compak publish ghcr.io/user/package:version
-```
+When installed, compak downloads the compose file from the `source` URL and applies the configured parameters.
 
 ## Environment Variables
 
@@ -206,7 +196,8 @@ These fixtures are clearly labeled as demo packages and are not meant for produc
 
 ## Acknowledgments
 
-* [Docker App retrospective](https://github.com/docker/roadmap/issues/209) - Inspiration for this solution
+* [Docker App retrospective](https://github.com/docker/roadmap/issues/209) - Motivation for the project
 * [OCI Artifacts specification](https://github.com/opencontainers/artifacts) - Foundation for package storage
 * [oras-project](https://github.com/oras-project/oras-go) - OCI registry client library
 * [Porter](https://github.com/getporter/porter) - Demonstrated patterns for package management
+* [Homebrew](https://brew.sh) - Inspiration for package index and distribution model
