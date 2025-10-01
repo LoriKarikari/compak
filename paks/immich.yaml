@@ -31,4 +31,3 @@ parameters:
     type: string
     default: "release"
     description: "Immich version to use (release, v1.144.1, etc.)"
-n
