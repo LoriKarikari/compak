@@ -162,21 +162,6 @@ COMPAK_INDEX_PATH=test/fixtures/paks compak search demo
 COMPAK_INDEX_REPO=https://github.com/myorg/myindex.git compak update
 ```
 
-## Roadmap
-
-- [x] Basic CLI with install/uninstall/list commands
-- [x] Docker/Podman Compose detection
-- [x] OCI registry pull functionality
-- [x] Parameter substitution
-- [x] Local state tracking
-- [x] Package publishing command
-- [x] Package search functionality
-- [x] Package index management
-- [ ] Package update command (upgrade installed packages)
-- [ ] Installation scripts (brew, apt, binary releases)
-- [ ] Version constraints and dependency resolution
-- [ ] Package verification and signatures
-
 ## Contributing
 
 ### Test Fixtures
