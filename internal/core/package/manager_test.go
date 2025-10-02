@@ -21,7 +21,9 @@ func TestDownloadComposeFile(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/yaml")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(composeContent))
+		if _, err := w.Write([]byte(composeContent)); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -46,7 +48,9 @@ func TestDownloadComposeFile(t *testing.T) {
 func TestDownloadComposeFileInvalidYAML(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("this is not valid yaml: [[["))
+		if _, err := w.Write([]byte("this is not valid yaml: [[[")); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	}))
 	defer server.Close()
 

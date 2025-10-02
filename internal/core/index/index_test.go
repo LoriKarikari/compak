@@ -50,13 +50,13 @@ func TestSearchRealRepo(t *testing.T) {
 	client := NewClient()
 	ctx := context.Background()
 
-	testSearchAllPackages(t, client, ctx)
-	testSearchForImmich(t, client, ctx)
-	testSearchByDescription(t, client, ctx)
-	testSearchWithLimit(t, client, ctx)
+	testSearchAllPackages(ctx, t, client)
+	testSearchForImmich(ctx, t, client)
+	testSearchByDescription(ctx, t, client)
+	testSearchWithLimit(ctx, t, client)
 }
 
-func testSearchAllPackages(t *testing.T, client *Client, ctx context.Context) {
+func testSearchAllPackages(ctx context.Context, t *testing.T, client *Client) {
 	t.Helper()
 	results, err := client.Search(ctx, "", 10)
 	if err != nil {
@@ -68,7 +68,7 @@ func testSearchAllPackages(t *testing.T, client *Client, ctx context.Context) {
 	}
 }
 
-func testSearchForImmich(t *testing.T, client *Client, ctx context.Context) {
+func testSearchForImmich(ctx context.Context, t *testing.T, client *Client) {
 	t.Helper()
 	results, err := client.Search(ctx, "immich", 10)
 	if err != nil {
@@ -103,7 +103,7 @@ func validateImmichResult(t *testing.T, result SearchResult) {
 	}
 }
 
-func testSearchByDescription(t *testing.T, client *Client, ctx context.Context) {
+func testSearchByDescription(ctx context.Context, t *testing.T, client *Client) {
 	t.Helper()
 	results, err := client.Search(ctx, "photo", 10)
 	if err != nil {
@@ -126,7 +126,7 @@ func testSearchByDescription(t *testing.T, client *Client, ctx context.Context) 
 	}
 }
 
-func testSearchWithLimit(t *testing.T, client *Client, ctx context.Context) {
+func testSearchWithLimit(ctx context.Context, t *testing.T, client *Client) {
 	t.Helper()
 	results, err := client.Search(ctx, "", 1)
 	if err != nil {
