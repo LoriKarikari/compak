@@ -6,7 +6,7 @@ require (
 	github.com/compose-spec/compose-go/v2 v2.9.0
 	github.com/docker/cli v28.4.0+incompatible
 	github.com/docker/compose/v2 v2.39.4
-	github.com/go-git/go-git/v5 v5.16.2
+	github.com/go-git/go-git/v5 v5.16.3
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/samber/lo v1.51.0
