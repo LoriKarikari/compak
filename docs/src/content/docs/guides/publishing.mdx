@@ -1,0 +1,372 @@
+---
+title: Publishing Packages
+description: How to publish your own compak packages to OCI registries
+---
+
+Compak packages can be published to any OCI-compatible registry (GitHub Container Registry, Docker Hub, private registries). This guide walks you through the entire publishing process.
+
+## Quick Start
+
+```bash
+# Create your package
+mkdir myapp && cd myapp
+# ... create package.yaml and docker-compose.yaml
+
+# Publish to GitHub Container Registry
+compak publish ghcr.io/username/myapp:1.0.0
+```
+
+## Prerequisites
+
+Before publishing, ensure you have:
+
+1. **Docker credentials**: Authenticate with your target registry
+2. **Package files**: Valid `package.yaml` and `docker-compose.yaml`
+3. **Registry permissions**: Write access to the target repository
+
+### Registry Authentication
+
+#### GitHub Container Registry (GHCR)
+
+```bash
+# Create a Personal Access Token with write:packages scope
+# Then authenticate:
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+```
+
+#### Docker Hub
+
+```bash
+docker login
+```
+
+#### Private Registry
+
+```bash
+docker login registry.example.com
+```
+
+## Publishing Workflow
+
+### 1. Prepare Your Package
+
+Your package directory must contain:
+
+```
+myapp/
+├── package.yaml           # Package metadata
+└── docker-compose.yaml    # Compose file
+```
+
+Example `package.yaml`:
+
+```yaml
+name: myapp
+version: 1.0.0
+description: My awesome application
+source: local
+parameters:
+  - name: PORT
+    description: Application port
+    type: port
+    default: "8080"
+  - name: SECRET_KEY
+    description: Application secret key
+    type: string
+    required: true
+```
+
+### 2. Validate Your Package
+
+Test your package locally before publishing:
+
+```bash
+# Install from local directory
+compak install myapp --path ./myapp --set SECRET_KEY=test123
+
+# Check status
+compak status myapp
+
+# Uninstall
+compak uninstall myapp
+```
+
+### 3. Publish to Registry
+
+Use the `publish` command with your registry reference:
+
+```bash
+compak publish ghcr.io/username/myapp:1.0.0
+```
+
+Output:
+```
+Publishing package 'myapp' version 1.0.0 to ghcr.io/username/myapp:1.0.0
+Package description: My awesome application
+Pushing package to registry...
+✓ Successfully published package to ghcr.io/username/myapp:1.0.0
+
+To install this package, run:
+  compak install ghcr.io/username/myapp:1.0.0
+```
+
+### 4. Verify Publication
+
+Install your published package:
+
+```bash
+compak install ghcr.io/username/myapp:1.0.0
+```
+
+## Publishing Strategies
+
+### Semantic Versioning
+
+Use [semantic versioning](https://semver.org/) for your packages:
+
+```bash
+# Major release (breaking changes)
+compak publish ghcr.io/username/myapp:2.0.0
+
+# Minor release (new features, backwards compatible)
+compak publish ghcr.io/username/myapp:1.1.0
+
+# Patch release (bug fixes)
+compak publish ghcr.io/username/myapp:1.0.1
+```
+
+### Tag Strategy
+
+Publish multiple tags for different use cases:
+
+```bash
+# Specific version
+compak publish ghcr.io/username/myapp:1.2.3
+
+# Latest tag
+compak publish ghcr.io/username/myapp:latest
+
+# Major version tag
+compak publish ghcr.io/username/myapp:1
+```
+
+### Multi-Registry Publishing
+
+Publish to multiple registries for redundancy:
+
+```bash
+# GitHub Container Registry
+compak publish ghcr.io/username/myapp:1.0.0
+
+# Docker Hub
+compak publish docker.io/username/myapp:1.0.0
+
+# Private registry
+compak publish registry.example.com/myapp:1.0.0
+```
+
+## Advanced Usage
+
+### Custom Package Path
+
+Publish from a specific directory:
+
+```bash
+compak publish ghcr.io/username/myapp:1.0.0 --path /path/to/package
+```
+
+### Automation with CI/CD
+
+Example GitHub Actions workflow:
+
+```yaml
+name: Publish Package
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install compak
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/LoriKarikari/compak/main/install.sh | bash
+          echo "$HOME/.compak/bin" >> $GITHUB_PATH
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Publish package
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          compak publish ghcr.io/${{ github.repository_owner }}/myapp:$VERSION --path ./package
+          compak publish ghcr.io/${{ github.repository_owner }}/myapp:latest --path ./package
+```
+
+## Best Practices
+
+### 1. Version Your Packages
+
+Always specify explicit versions in `package.yaml`:
+
+```yaml
+name: myapp
+version: 1.2.3  # Use semver
+```
+
+### 2. Document Parameters
+
+Provide clear descriptions for all parameters:
+
+```yaml
+parameters:
+  - name: DATABASE_URL
+    description: PostgreSQL connection string (postgres://user:pass@host:5432/db)
+    type: string
+    required: true
+  - name: MAX_CONNECTIONS
+    description: Maximum number of database connections
+    type: number
+    default: "100"
+```
+
+### 3. Test Before Publishing
+
+Always test locally:
+
+```bash
+# Test installation
+compak install myapp --path . --set PARAM=value
+
+# Verify services start
+compak status myapp
+
+# Clean up
+compak uninstall myapp
+```
+
+### 4. Use Descriptive Tags
+
+Tag packages with meaningful versions:
+
+```bash
+# Good
+compak publish ghcr.io/user/myapp:1.2.3
+compak publish ghcr.io/user/myapp:stable
+
+# Avoid
+compak publish ghcr.io/user/myapp:test
+compak publish ghcr.io/user/myapp:foobar
+```
+
+### 5. Secure Sensitive Data
+
+Never hardcode secrets in compose files:
+
+```yaml
+# Bad - hardcoded secret
+environment:
+  SECRET_KEY: supersecret123
+
+# Good - parameterized
+environment:
+  SECRET_KEY: ${SECRET_KEY}
+```
+
+## Troubleshooting
+
+### Authentication Failed
+
+```bash
+$ compak publish ghcr.io/user/myapp:1.0.0
+Error: failed to publish package: authentication required
+```
+
+**Solution**: Login to the registry first:
+
+```bash
+echo $TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+```
+
+### Permission Denied
+
+```bash
+$ compak publish ghcr.io/user/myapp:1.0.0
+Error: failed to publish package: insufficient permissions
+```
+
+**Solutions**:
+- Verify your token has `write:packages` scope (GitHub)
+- Check repository visibility settings
+- Confirm you have write access to the repository
+
+### Package Files Not Found
+
+```bash
+$ compak publish ghcr.io/user/myapp:1.0.0
+Error: package.yaml not found in /path/to/dir
+```
+
+**Solution**: Ensure files exist:
+
+```bash
+ls -la
+# Should show:
+# package.yaml
+# docker-compose.yaml
+```
+
+Or specify the correct path:
+
+```bash
+compak publish ghcr.io/user/myapp:1.0.0 --path ./package-directory
+```
+
+### Invalid Package Format
+
+```bash
+$ compak publish ghcr.io/user/myapp:1.0.0
+Error: failed to parse package.yaml: ...
+```
+
+**Solution**: Validate your `package.yaml` syntax:
+
+```bash
+# Check YAML syntax
+cat package.yaml | yamllint -
+
+# Verify required fields
+grep -E "^name:|^version:|^source:" package.yaml
+```
+
+## Registry-Specific Notes
+
+### GitHub Container Registry
+
+- **Visibility**: Packages are private by default
+- **Permissions**: Token needs `write:packages` and `read:packages` scopes
+- **Organization packages**: Must have admin access to the org
+
+### Docker Hub
+
+- **Free tier**: Limited to public repositories
+- **Naming**: Must match Docker Hub username or organization
+- **Rate limits**: Apply to pulls (not publishes)
+
+### Private Registries
+
+- **Authentication**: Support varies by registry implementation
+- **Certificates**: May need to configure Docker for self-signed certs
+- **Network**: Ensure registry is accessible from publishing machine
+
+## See Also
+
+- [Creating Packages](/guides/creating/) - How to create package files
+- [Package Format Reference](/reference/package-format/) - Complete schema documentation
+- [Versioning Guide](/guides/versioning/) - Version management strategies

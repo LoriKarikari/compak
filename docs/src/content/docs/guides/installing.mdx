@@ -1,0 +1,281 @@
+---
+title: Installing Packages
+description: Different ways to install compak packages
+---
+
+Compak supports multiple installation sources and methods.
+
+## From Package Index
+
+The simplest way to install packages:
+
+```bash
+compak install immich --set DB_PASSWORD=secure123
+```
+
+This installs from the curated package index at `https://github.com/LoriKarikari/compak`.
+
+### Custom Index
+
+Use a different package index:
+
+```bash
+export COMPAK_INDEX_REPO=https://github.com/myorg/packages.git
+export COMPAK_INDEX_PATH=paks
+
+compak update
+compak install mypackage
+```
+
+## From OCI Registry
+
+Install from Docker registries (GHCR, Docker Hub, etc.):
+
+```bash
+compak install ghcr.io/compak/nginx:1.0.0
+```
+
+### Supported Registries
+
+- GitHub Container Registry: `ghcr.io/user/package:version`
+- Docker Hub: `docker.io/user/package:version`
+- Private registries: `registry.example.com/package:version`
+
+### Authentication
+
+For private registries, use Docker credentials or GitHub token:
+
+```bash
+# GitHub Container Registry
+export GITHUB_TOKEN=ghp_your_token_here
+compak install ghcr.io/private/package:1.0.0
+
+# Docker credentials (uses ~/.docker/config.json)
+docker login registry.example.com
+compak install registry.example.com/package:1.0.0
+```
+
+## From Local Directory
+
+Install from a local package directory:
+
+```bash
+compak install mypackage --path ./my-compose-app
+```
+
+Directory structure:
+```
+my-compose-app/
+├── package.yaml          # Package metadata
+└── docker-compose.yaml   # Compose file
+```
+
+### Package Definition
+
+`package.yaml`:
+```yaml
+name: mypackage
+version: 1.0.0
+description: My custom package
+parameters:
+  PORT:
+    type: port
+    default: "8080"
+    description: HTTP port
+```
+
+## Setting Parameters
+
+### Required Parameters
+
+Some packages have required parameters:
+
+```bash
+compak install immich --set DB_PASSWORD=mysecretpassword
+```
+
+Without required parameters, installation fails:
+```
+Error: parameter validation failed: required parameter 'DB_PASSWORD' is missing
+```
+
+### Multiple Parameters
+
+```bash
+compak install nginx \
+  --set PORT=8080 \
+  --set SERVER_NAME=myserver.local \
+  --set MAX_BODY_SIZE=50m
+```
+
+### Parameter Types
+
+Compak validates parameter types:
+
+- **string**: Any text value
+- **number**: Numeric values (e.g., `42`, `3.14`)
+- **boolean**: `true`, `false`, `yes`, `no`, `1`, `0`
+- **port**: Valid port number (1-65535)
+
+Example:
+```bash
+compak install myapp \
+  --set NAME="My App" \        # string
+  --set REPLICAS=3 \           # number
+  --set ENABLE_SSL=true \      # boolean
+  --set HTTP_PORT=8080         # port
+```
+
+## Version-Specific Installation
+
+### Specific Version
+
+```bash
+compak install immich@1.144 --set DB_PASSWORD=secure123
+```
+
+### Latest Version
+
+```bash
+compak install immich --set DB_PASSWORD=secure123
+```
+
+### Using --version Flag
+
+```bash
+compak install immich --version 1.144 --set DB_PASSWORD=secure123
+```
+
+See [Version Management](/guides/versioning/) for more details.
+
+## Installation Behavior
+
+### Existing Package
+
+If package is already installed:
+
+```bash
+compak install nginx
+# Package nginx@1.0.0 is already installed (installed: 1.0.0)
+# Use 'compak uninstall' first to reinstall with different settings
+```
+
+To reinstall:
+```bash
+compak uninstall nginx
+compak install nginx --set PORT=9090
+```
+
+Or use upgrade:
+```bash
+compak upgrade nginx --version 2.0.0
+```
+
+### Installation Process
+
+When you install a package, compak:
+
+1. **Loads package definition** from index/registry/path
+2. **Validates parameters** (checks required fields, types)
+3. **Downloads compose file** (if remote source)
+4. **Creates .env file** with merged parameters
+5. **Pulls Docker images** (using compose pull)
+6. **Starts services** (using compose up -d)
+7. **Saves state** to `~/.compak/state/installed.json`
+
+### Installation Location
+
+Packages are installed to:
+```
+~/.compak/state/packages/<package-name>/
+├── docker-compose.yaml
+└── .env
+```
+
+## Checking Installation
+
+### List Installed Packages
+
+```bash
+compak list
+```
+
+Output:
+```
+NAME     VERSION  STATUS      INSTALLED
+immich   1.144.1  installed   2025-01-15 10:30:00
+nginx    1.0.0    installed   2025-01-15 09:15:00
+```
+
+### Check Package Status
+
+```bash
+compak status immich
+```
+
+Output:
+```
+immich-server    running   Up 2 hours
+immich-postgres  running   Up 2 hours
+immich-redis     running   Up 2 hours
+```
+
+## Troubleshooting
+
+### Package Not Found
+
+```bash
+compak install mypackage
+# Error: package mypackage not found in index
+```
+
+Solutions:
+- Update index: `compak update`
+- Search for package: `compak search mypackage`
+- Check package name spelling
+- Use full registry reference: `ghcr.io/user/mypackage:1.0.0`
+
+### Parameter Validation Failed
+
+```bash
+compak install myapp --set PORT=99999
+# Error: parameter 'PORT' must be a valid port number (1-65535)
+```
+
+Check available parameters:
+```bash
+compak search myapp
+# Shows parameter details
+```
+
+### Compose Command Not Found
+
+```bash
+compak install nginx
+# Error: no compose command found (tried: docker compose, docker-compose, podman-compose)
+```
+
+Install Docker Compose:
+```bash
+# Docker Compose v2 (recommended)
+sudo apt install docker-compose-plugin
+
+# Or docker-compose
+sudo apt install docker-compose
+
+# Or Podman Compose
+pip install podman-compose
+```
+
+### Permission Denied
+
+```bash
+compak install nginx
+# Error: failed to create state directory: permission denied
+```
+
+Check permissions on `~/.compak/`:
+```bash
+ls -la ~/.compak/
+chmod 755 ~/.compak/
+```

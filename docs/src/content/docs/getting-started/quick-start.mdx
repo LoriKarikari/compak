@@ -1,0 +1,115 @@
+---
+title: Quick Start
+description: Deploy your first package with compak in 5 minutes
+---
+
+This guide will walk you through installing and deploying your first package.
+
+## Step 1: Update the Index
+
+```bash
+compak update
+```
+
+This pulls the latest package definitions from GitHub.
+
+## Step 2: Search for Packages
+
+```bash
+compak search immich
+```
+
+Output:
+```
+NAME    VERSION  DESCRIPTION
+immich  latest   Self-hosted photo and video backup solution
+```
+
+## Step 3: Install a Package
+
+```bash
+compak install immich --set DB_PASSWORD=mysecretpassword
+```
+
+Compak will:
+1. Download the compose file
+2. Set up parameters
+3. Pull Docker images
+4. Start the services
+
+## Step 4: Check Status
+
+```bash
+compak list
+```
+
+Output:
+```
+NAME    VERSION  STATUS      INSTALLED
+immich  latest   installed   2025-01-15 10:30:00
+```
+
+Check running containers:
+```bash
+compak status immich
+```
+
+## Step 5: Access Your Application
+
+Open your browser and navigate to:
+```
+http://localhost:2283
+```
+
+(Port may vary depending on the package)
+
+## Managing Packages
+
+### Upgrade to Latest Version
+
+```bash
+compak upgrade immich
+```
+
+### Install Specific Version
+
+```bash
+compak install immich@1.144 --set DB_PASSWORD=mysecretpassword
+```
+
+### Uninstall
+
+```bash
+compak uninstall immich
+```
+
+This stops all containers and removes the package.
+
+## Common Workflows
+
+### Installing from OCI Registry
+
+```bash
+compak install ghcr.io/compak/nginx:1.0.0
+```
+
+### Installing from Local Directory
+
+```bash
+compak install myapp --path ./my-compose-app
+```
+
+### Customizing Parameters
+
+```bash
+compak install nginx \
+  --set PORT=8080 \
+  --set SERVER_NAME=myserver.local \
+  --set MAX_BODY_SIZE=50m
+```
+
+## What's Next?
+
+- [Version Management](/guides/versioning/) - Learn about pinned vs floating versions
+- [Publishing Packages](/guides/publishing/) - Share your own packages
+- [CLI Reference](/reference/cli/) - Complete command documentation

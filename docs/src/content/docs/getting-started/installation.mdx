@@ -1,0 +1,96 @@
+---
+title: Installation
+description: How to install compak on your system
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+- **Docker Compose v2** or **docker-compose** or **podman-compose**
+- **Linux**, **macOS**, or **Windows** (WSL2)
+
+## Install compak
+
+<Tabs>
+  <TabItem label="Install Script" icon="rocket">
+    Download and run the install script:
+
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/LoriKarikari/compak/main/install.sh | bash
+    ```
+
+    This will:
+    - Detect your OS and architecture
+    - Download the latest release
+    - Verify checksums
+    - Install to `/usr/local/bin/compak`
+  </TabItem>
+
+  <TabItem label="Manual" icon="pencil">
+    ### Download Binary
+
+    Visit the [Releases page](https://github.com/LoriKarikari/compak/releases) and download for your system:
+
+    - **Linux (amd64)**: `compak_Linux_x86_64.tar.gz`
+    - **Linux (arm64)**: `compak_Linux_arm64.tar.gz`
+    - **macOS (Intel)**: `compak_Darwin_x86_64.tar.gz`
+    - **macOS (Apple Silicon)**: `compak_Darwin_arm64.tar.gz`
+    - **Windows (amd64)**: `compak_Windows_x86_64.zip`
+
+    ### Extract and Install
+
+    ```bash
+    # Extract
+    tar -xzf compak_Linux_x86_64.tar.gz
+
+    # Move to PATH
+    sudo mv compak /usr/local/bin/
+
+    # Make executable
+    sudo chmod +x /usr/local/bin/compak
+    ```
+  </TabItem>
+
+  <TabItem label="Build from Source" icon="seti:config">
+    Requires **Go 1.21** or later:
+
+    ```bash
+    # Clone repository
+    git clone https://github.com/LoriKarikari/compak
+    cd compak
+
+    # Build
+    make build
+
+    # Binary is in bin/compak
+    ./bin/compak --help
+    ```
+  </TabItem>
+</Tabs>
+
+## Verify Installation
+
+```bash
+compak version
+```
+
+You should see output like:
+```
+compak v0.1.0 (abc123d)
+```
+
+## Update Package Index
+
+After installation, update the package index:
+
+```bash
+compak update
+```
+
+This downloads the package index from GitHub to `~/.compak/index/`.
+
+## Next Steps
+
+- [Quick Start Guide](/getting-started/quick-start/) - Deploy your first package
+- [Installing Packages](/guides/installing/) - Learn installation options

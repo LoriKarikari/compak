@@ -1,0 +1,540 @@
+---
+title: Creating Packages
+description: How to create your own compak packages from scratch
+---
+
+Creating a compak package is straightforward. This guide walks you through building a package from an existing Docker Compose application.
+
+## Quick Example
+
+```bash
+# Start with your compose file
+mkdir myapp && cd myapp
+
+# Create package.yaml
+cat > package.yaml <<EOF
+name: myapp
+version: 1.0.0
+description: My awesome application
+source: local
+parameters:
+  - name: PORT
+    description: Application port
+    type: port
+    default: "8080"
+EOF
+
+# Add your docker-compose.yaml
+# ... (your existing compose file)
+
+# Test locally
+compak install myapp --path . --set PORT=9090
+```
+
+## Package Structure
+
+A minimal compak package consists of two files:
+
+```
+myapp/
+├── package.yaml           # Package metadata and parameters
+└── docker-compose.yaml    # Docker Compose configuration
+```
+
+## Creating package.yaml
+
+### Basic Structure
+
+```yaml
+name: myapp
+version: 1.0.0
+description: A brief description of your application
+source: local  # or URL to remote compose file
+```
+
+### Required Fields
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `name` | Package identifier (lowercase, alphanumeric, hyphens) | `my-app` |
+| `version` | Semantic version | `1.2.3` |
+| `description` | Brief package description | `Self-hosted photo manager` |
+| `source` | Compose file location | `local` or URL |
+
+### Complete Example
+
+```yaml
+name: myapp
+version: 1.0.0
+description: My awesome application
+source: local
+homepage: https://myapp.example.com
+repository: https://github.com/user/myapp
+license: MIT
+
+parameters:
+  - name: PORT
+    description: Application HTTP port
+    type: port
+    default: "8080"
+
+  - name: DATABASE_PASSWORD
+    description: PostgreSQL database password
+    type: string
+    required: true
+
+  - name: MAX_CONNECTIONS
+    description: Maximum database connections
+    type: number
+    default: "100"
+
+  - name: ENABLE_SSL
+    description: Enable SSL/TLS
+    type: boolean
+    default: "false"
+```
+
+## Defining Parameters
+
+Parameters allow users to customize your package without editing files.
+
+### Parameter Types
+
+#### String
+
+```yaml
+- name: API_KEY
+  description: External API authentication key
+  type: string
+  required: true
+```
+
+#### Number
+
+```yaml
+- name: WORKER_COUNT
+  description: Number of background workers
+  type: number
+  default: "4"
+```
+
+#### Boolean
+
+```yaml
+- name: DEBUG_MODE
+  description: Enable debug logging
+  type: boolean
+  default: "false"
+```
+
+#### Port
+
+```yaml
+- name: HTTP_PORT
+  description: HTTP server port
+  type: port
+  default: "8080"
+```
+
+### Parameter Options
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Parameter identifier (uppercase, underscores) |
+| `description` | string | User-facing description |
+| `type` | string | `string`, `number`, `boolean`, `port` |
+| `default` | string | Default value (as string) |
+| `required` | boolean | Whether parameter must be provided |
+
+### Best Practices
+
+**Use descriptive names:**
+```yaml
+# Good
+- name: DATABASE_PASSWORD
+- name: SMTP_HOST
+- name: MAX_UPLOAD_SIZE
+
+# Avoid
+- name: PASS
+- name: HOST
+- name: MAX
+```
+
+**Provide helpful descriptions:**
+```yaml
+# Good
+- name: DATABASE_URL
+  description: PostgreSQL connection string (postgres://user:pass@host:5432/db)
+
+# Less helpful
+- name: DATABASE_URL
+  description: Database URL
+```
+
+**Set sensible defaults:**
+```yaml
+- name: LOG_LEVEL
+  description: Logging verbosity (debug, info, warn, error)
+  type: string
+  default: "info"
+```
+
+## Creating docker-compose.yaml
+
+### Use Environment Variables
+
+Reference parameters using `${PARAMETER_NAME}` syntax:
+
+```yaml
+services:
+  app:
+    image: myapp:latest
+    ports:
+      - "${PORT}:8080"
+    environment:
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      MAX_CONNECTIONS: ${MAX_CONNECTIONS}
+      DEBUG_MODE: ${DEBUG_MODE}
+```
+
+### Example Compose File
+
+```yaml
+services:
+  app:
+    image: myapp:1.0.0
+    container_name: myapp
+    ports:
+      - "${PORT}:8080"
+    environment:
+      DATABASE_URL: postgres://postgres:${DATABASE_PASSWORD}@db:5432/myapp
+      LOG_LEVEL: ${LOG_LEVEL}
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    container_name: myapp-db
+    environment:
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: myapp
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  db-data:
+```
+
+### Compose Best Practices
+
+**1. Use explicit image tags:**
+```yaml
+# Good
+image: postgres:16.1
+
+# Avoid
+image: postgres:latest
+```
+
+**2. Set container names:**
+```yaml
+services:
+  app:
+    container_name: myapp-server
+```
+
+**3. Configure restart policies:**
+```yaml
+services:
+  app:
+    restart: unless-stopped
+```
+
+**4. Use named volumes:**
+```yaml
+services:
+  db:
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+volumes:
+  db-data:
+```
+
+**5. Define health checks:**
+```yaml
+services:
+  app:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
+
+## Remote Source Packages
+
+For packages that reference remote compose files:
+
+```yaml
+name: immich
+version: 1.144.1
+description: Self-hosted photo and video backup
+source: https://raw.githubusercontent.com/immich-app/immich/v1.144.1/docker-compose.yml
+versioning_type: pinned
+```
+
+Compak will download the compose file from the URL when installing.
+
+## Versioning Strategies
+
+### Pinned Versions
+
+For packages tracking specific upstream releases:
+
+```yaml
+name: immich
+version: 1.144.1
+versioning_type: pinned
+source: https://raw.githubusercontent.com/immich-app/immich/v1.144.1/docker-compose.yml
+```
+
+Create versioned files in the index:
+```
+paks/
+├── immich.yaml         # Latest/floating
+└── immich@1.144.yaml   # Pinned version
+```
+
+### Floating Versions
+
+For packages that track the latest main branch:
+
+```yaml
+name: myapp
+version: latest
+versioning_type: floating
+updated: "2025-01-15"
+source: https://raw.githubusercontent.com/user/myapp/main/docker-compose.yml
+```
+
+See the [Versioning Guide](/guides/versioning/) for detailed strategies.
+
+## Testing Your Package
+
+### 1. Local Installation
+
+Test from the package directory:
+
+```bash
+compak install myapp --path . --set DATABASE_PASSWORD=test123
+```
+
+### 2. Verify Services
+
+Check container status:
+
+```bash
+compak status myapp
+```
+
+Expected output:
+```
+myapp-server   running   Up 30 seconds
+myapp-db       running   Up 31 seconds
+```
+
+### 3. Test Functionality
+
+Verify your application works:
+
+```bash
+curl http://localhost:8080
+docker logs myapp-server
+```
+
+### 4. Test Parameters
+
+Try different parameter values:
+
+```bash
+compak uninstall myapp
+compak install myapp --path . \
+  --set PORT=9090 \
+  --set DATABASE_PASSWORD=different123 \
+  --set DEBUG_MODE=true
+```
+
+### 5. Clean Up
+
+```bash
+compak uninstall myapp
+```
+
+## Common Patterns
+
+### Multi-Service Application
+
+```yaml
+# package.yaml
+name: webapp
+version: 1.0.0
+description: Full-stack web application
+source: local
+
+parameters:
+  - name: WEB_PORT
+    description: Web server port
+    type: port
+    default: "80"
+  - name: API_PORT
+    description: API server port
+    type: port
+    default: "3000"
+  - name: DB_PASSWORD
+    description: Database password
+    type: string
+    required: true
+```
+
+```yaml
+# docker-compose.yaml
+services:
+  frontend:
+    image: myapp/frontend:1.0.0
+    ports:
+      - "${WEB_PORT}:80"
+    depends_on:
+      - backend
+
+  backend:
+    image: myapp/backend:1.0.0
+    ports:
+      - "${API_PORT}:3000"
+    environment:
+      DATABASE_URL: postgres://postgres:${DB_PASSWORD}@db:5432/app
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+volumes:
+  db-data:
+```
+
+### Application with Configuration File
+
+Use volume mounts for config:
+
+```yaml
+services:
+  app:
+    image: myapp:1.0.0
+    volumes:
+      - ./config/app.conf:/etc/myapp/app.conf:ro
+      - app-data:/var/lib/myapp
+
+volumes:
+  app-data:
+```
+
+### Reverse Proxy Setup
+
+```yaml
+# package.yaml
+parameters:
+  - name: DOMAIN
+    description: Application domain name
+    type: string
+    default: "localhost"
+  - name: SSL_CERT_PATH
+    description: Path to SSL certificate
+    type: string
+    default: ""
+```
+
+```yaml
+# docker-compose.yaml
+services:
+  app:
+    image: myapp:1.0.0
+    environment:
+      VIRTUAL_HOST: ${DOMAIN}
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${SSL_CERT_PATH}:/etc/nginx/certs:ro
+    depends_on:
+      - app
+```
+
+## Validation Checklist
+
+Before publishing, verify:
+
+- [ ] `package.yaml` has all required fields
+- [ ] Version follows semantic versioning
+- [ ] All parameters have descriptions
+- [ ] Required parameters are marked as `required: true`
+- [ ] Default values are appropriate
+- [ ] Compose file uses environment variables for parameters
+- [ ] Image tags are pinned (not `:latest`)
+- [ ] Container names are set
+- [ ] Volumes are named
+- [ ] Package installs successfully: `compak install --path .`
+- [ ] Services start: `compak status <name>`
+- [ ] Application is accessible
+- [ ] Uninstall works: `compak uninstall <name>`
+
+## Next Steps
+
+Once your package is ready:
+
+1. **Test thoroughly** - Install, verify, uninstall
+2. **Publish to registry** - See [Publishing Packages](/guides/publishing/)
+3. **Submit to index** - Open PR to add to the curated index
+4. **Document usage** - Add README with examples
+
+## Examples
+
+### Minimal Package
+
+```yaml
+# package.yaml
+name: hello
+version: 1.0.0
+description: Hello world application
+source: local
+```
+
+```yaml
+# docker-compose.yaml
+services:
+  hello:
+    image: nginxdemos/hello:latest
+    container_name: hello
+    ports:
+      - "8080:80"
+```
+
+### Complete Package
+
+See the [immich package](https://github.com/LoriKarikari/compak/blob/main/paks/immich.yaml) in the compak repository for a real-world example.
+
+## See Also
+
+- [Publishing Packages](/guides/publishing/) - Publish to OCI registries
+- [Package Format Reference](/reference/package-format/) - Complete schema
+- [Versioning Guide](/guides/versioning/) - Version management strategies

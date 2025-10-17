@@ -1,0 +1,254 @@
+---
+title: Package Format
+description: Package definition format reference
+---
+
+A compak package consists of a `package.yaml` (or `package.json`) file and an optional `docker-compose.yaml` file.
+
+## package.yaml
+
+### Required Fields
+
+```yaml
+name: mypackage
+version: 1.0.0
+description: A brief description of the package
+```
+
+- **name** (string): Package identifier (alphanumeric, hyphens, underscores)
+- **version** (string): Package version (semver recommended)
+- **description** (string): Short description (max 500 characters)
+
+### Optional Fields
+
+```yaml
+author: maintainer-name
+license: MIT
+homepage: https://example.com
+repository: https://github.com/user/repo
+source: https://raw.githubusercontent.com/user/repo/main/docker-compose.yml
+versioning_type: pinned  # or "floating"
+updated: "2025-01-15"
+```
+
+- **author** (string): Package maintainer
+- **license** (string): License identifier (e.g., MIT, Apache-2.0)
+- **homepage** (string): Project website URL
+- **repository** (string): Source code repository URL
+- **source** (string): URL to docker-compose.yaml file
+- **versioning_type** (string): `pinned` or `floating`
+- **updated** (string): Last update date (for floating versions)
+
+### Parameters
+
+Define configurable parameters for the package:
+
+```yaml
+parameters:
+  PORT:
+    type: port
+    default: "8080"
+    description: HTTP port to expose
+    required: false
+
+  DB_PASSWORD:
+    type: string
+    description: Database password
+    required: true
+
+  REPLICAS:
+    type: number
+    default: "3"
+    description: Number of replicas
+
+  ENABLE_SSL:
+    type: boolean
+    default: "false"
+    description: Enable SSL/TLS
+```
+
+#### Parameter Types
+
+- **string**: Any text value
+- **number**: Numeric values (integers or decimals)
+- **boolean**: `true`, `false`, `yes`, `no`, `1`, `0`
+- **port**: Valid port number (1-65535)
+
+#### Parameter Fields
+
+- **type** (string): Parameter type (required)
+- **description** (string): Parameter description (required)
+- **default** (string): Default value
+- **required** (boolean): Whether parameter is required (default: false)
+
+## docker-compose.yaml
+
+Standard Docker Compose file with parameter substitution:
+
+```yaml
+services:
+  app:
+    image: myapp:${APP_VERSION}
+    ports:
+      - "${PORT}:80"
+    environment:
+      - DB_PASSWORD=${DB_PASSWORD}
+      - ENABLE_SSL=${ENABLE_SSL}
+    replicas: ${REPLICAS}
+```
+
+### Parameter Substitution
+
+Parameters are substituted using `${PARAMETER_NAME}` syntax. Compak generates a `.env` file with all parameter values.
+
+## Complete Example
+
+### package.yaml
+
+```yaml
+name: nginx
+version: 1.0.0
+versioning_type: pinned
+description: High-performance HTTP server and reverse proxy
+author: compak-maintainers
+license: BSD-2-Clause
+homepage: https://nginx.org
+repository: https://github.com/nginx/nginx
+source: https://raw.githubusercontent.com/nginx/nginx-docker/main/docker-compose.yml
+
+parameters:
+  PORT:
+    type: port
+    default: "8080"
+    description: Port to expose nginx on
+
+  SERVER_NAME:
+    type: string
+    default: "localhost"
+    description: Server name for nginx config
+
+  MAX_BODY_SIZE:
+    type: string
+    default: "10m"
+    description: Maximum request body size
+
+  WORKER_PROCESSES:
+    type: number
+    default: "auto"
+    description: Number of worker processes
+```
+
+### docker-compose.yaml
+
+```yaml
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "${PORT}:80"
+    environment:
+      - NGINX_HOST=${SERVER_NAME}
+      - NGINX_CLIENT_MAX_BODY_SIZE=${MAX_BODY_SIZE}
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./html:/usr/share/nginx/html:ro
+    restart: unless-stopped
+```
+
+## Package Types
+
+### Type A: Pinned Versions
+
+For packages with versioned compose files:
+
+```yaml
+name: immich
+version: 1.144.1
+versioning_type: pinned
+source: https://raw.githubusercontent.com/immich-app/immich/v1.144.1/docker-compose.yml
+```
+
+- Source URL points to specific git tag
+- Each version is a separate file (`immich@1.144.yaml`)
+- Version upgrades change the compose file
+
+### Type B: Floating Versions
+
+For packages with unversioned compose files:
+
+```yaml
+name: myapp
+version: latest
+versioning_type: floating
+updated: "2025-01-15"
+source: https://raw.githubusercontent.com/user/myapp/main/docker-compose.yml
+```
+
+- Source URL points to main branch
+- Version controlled via parameters
+- Package version is metadata only
+
+## File Naming
+
+### Index Files
+
+- **Latest version**: `paks/package.yaml`
+- **Specific version**: `paks/package@version.yaml`
+
+Examples:
+- `paks/nginx.yaml` (latest)
+- `paks/nginx@1.25.yaml` (version 1.25)
+- `paks/immich@1.144.yaml` (version 1.144)
+
+### Local Packages
+
+For local packages, either name works:
+- `package.yaml` (preferred)
+- `package.json` (alternative)
+
+## JSON Format
+
+Alternatively, use `package.json`:
+
+```json
+{
+  "name": "nginx",
+  "version": "1.0.0",
+  "description": "High-performance HTTP server",
+  "author": "compak-maintainers",
+  "parameters": {
+    "PORT": {
+      "type": "port",
+      "default": "8080",
+      "description": "Port to expose nginx on"
+    }
+  }
+}
+```
+
+## Validation
+
+Compak validates:
+- Package name (alphanumeric, hyphens, underscores, max 100 chars)
+- Version format
+- Parameter types and values
+- Required parameters presence
+- URL formats for homepage, repository, source
+
+## Best Practices
+
+1. **Use semver** for version numbers
+2. **Provide defaults** for all parameters when possible
+3. **Mark sensitive parameters as required** (e.g., passwords)
+4. **Clear descriptions** for all parameters
+5. **Test parameter substitution** before publishing
+6. **Pin versions** for production packages
+7. **Use floating versions** for development packages
+
+## See Also
+
+- [Creating Packages](/guides/creating/) - Step-by-step guide
+- [Publishing Packages](/guides/publishing/) - Share your packages
+- [Version Management](/guides/versioning/) - Versioning strategies

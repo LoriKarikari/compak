@@ -1,0 +1,104 @@
+---
+title: compak
+description: A package manager for Docker Compose applications
+template: splash
+hero:
+  tagline: Install, manage, and distribute multi-container applications with ease.
+  image:
+    file: ../../assets/houston.webp
+  actions:
+    - text: Get Started
+      link: /getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/LoriKarikari/compak
+      icon: external
+---
+
+import { Card, CardGrid, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Meet Compak
+
+Compak is a package manager for Docker Compose applications. We believe deploying multi-container applications should be as simple as installing a package — no copy-pasting compose files, no manual configuration, just `compak install`.
+
+Inspired by Homebrew's simplicity and powered by OCI registries, compak fills the gap between raw Docker Compose and full orchestration platforms like Kubernetes.
+
+## Your First Package
+
+Get started in minutes. Install compak and deploy your first application:
+
+<Tabs>
+  <TabItem label="Install Compak" icon="rocket">
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/LoriKarikari/compak/main/install.sh | bash
+    ```
+  </TabItem>
+  <TabItem label="Deploy a Package" icon="puzzle">
+    ```bash
+    compak install immich --set DB_PASSWORD=secure123
+    ```
+  </TabItem>
+  <TabItem label="Check Status" icon="approve-check">
+    ```bash
+    compak status immich
+    # immich-server    running   Up 2 minutes
+    # immich-postgres  running   Up 2 minutes
+    ```
+  </TabItem>
+</Tabs>
+
+That's it. Your self-hosted photo backup is running. Open `http://localhost:2283` and start uploading photos.
+
+## Why Compak?
+
+<CardGrid>
+  <Card title="Simple Package Management" icon="puzzle">
+    Install multi-container applications as easily as `compak install nginx`
+  </Card>
+  <Card title="Version Control" icon="setting">
+    Pin specific versions or track latest releases. Upgrade with confidence.
+  </Card>
+  <Card title="OCI Registry Support" icon="approve-check">
+    Publish and distribute packages via Docker registries (GHCR, Docker Hub, etc.)
+  </Card>
+  <Card title="Git-Based Index" icon="github">
+    Homebrew-style package index with version history
+  </Card>
+</CardGrid>
+
+## Quick Example
+
+```bash
+# Install a package
+compak install immich --set DB_PASSWORD=secure123
+
+# List installed packages
+compak list
+
+# Upgrade to latest version
+compak upgrade immich
+
+# Install specific version
+compak install immich@1.144
+```
+
+## Features
+
+- **Compose-native**: Works with Docker Compose v2 and Podman Compose
+- **Parameterized deployments**: Override settings without editing files
+- **Registry integration**: Push/pull packages from OCI registries
+- **Version management**: Hybrid versioning for pinned and floating releases
+- **Secure by design**: Native Go implementation, no shell execution
+- **Cross-platform**: Linux, macOS, and Windows support
+
+## Use Cases
+
+- **Self-hosted apps**: Deploy Immich, Nextcloud, WordPress with one command
+- **Development environments**: Consistent multi-container setups across teams
+- **Homelab management**: Version-controlled infrastructure as code
+- **CI/CD pipelines**: Reproducible test environments
+
+---
+
+Ready to get started? [Install compak](/getting-started/installation/) and deploy your first package in minutes.

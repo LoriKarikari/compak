@@ -1,0 +1,242 @@
+---
+title: Version Management
+description: Understanding compak's hybrid versioning system
+---
+
+Compak implements a hybrid versioning system inspired by Homebrew, designed specifically for Docker Compose packages.
+
+## Two Version Types
+
+### Pinned Versions
+
+For packages with versioned compose files from upstream:
+
+```yaml
+# paks/immich@1.144.yaml
+name: immich
+version: 1.144.1
+versioning_type: pinned
+source: https://raw.githubusercontent.com/immich-app/immich/v1.144.1/docker-compose.yml
+```
+
+**Characteristics:**
+- Source URL points to specific git tag/release
+- Each version is a separate file
+- Version upgrades change the compose file itself
+- Use for production deployments
+
+### Floating Versions
+
+For packages with unversioned compose files:
+
+```yaml
+# paks/myapp.yaml
+name: myapp
+version: latest
+versioning_type: floating
+updated: "2025-01-15"
+source: https://raw.githubusercontent.com/user/myapp/main/docker-compose.yml
+```
+
+**Characteristics:**
+- Source URL points to main/master branch
+- Version controlled via parameters (image tags)
+- Package version is metadata only
+- Use for development/testing
+
+## Installing Versions
+
+### Specific Version
+
+```bash
+# Looks for paks/immich@1.144.yaml
+compak install immich@1.144 --set DB_PASSWORD=secure123
+```
+
+### Latest Version
+
+```bash
+# Uses paks/immich.yaml
+compak install immich --set DB_PASSWORD=secure123
+```
+
+### Using --version Flag
+
+```bash
+compak install immich --version 1.144 --set DB_PASSWORD=secure123
+```
+
+## Upgrading Packages
+
+### Upgrade to Latest
+
+```bash
+compak upgrade immich
+```
+
+Compak will:
+1. Check installed version
+2. Query index for latest
+3. Compare versions (using semver)
+4. Upgrade if newer version available
+5. Preserve your parameter settings
+
+### Upgrade to Specific Version
+
+```bash
+compak upgrade immich --version 1.145
+```
+
+### Upgrade All Packages
+
+```bash
+compak upgrade --all
+```
+
+Output:
+```
+Checking immich...
+Upgrading immich: 1.144.1 → 1.145.0
+Successfully upgraded immich to 1.145.0
+
+Checking nginx...
+Package nginx is already up to date
+
+2 upgraded, 1 skipped
+```
+
+## Git History Extraction
+
+Need an old version not in the current index?
+
+```bash
+# Search git history and extract version 1.140.0
+compak extract immich 1.140.0
+```
+
+Output:
+```
+Extracted immich@1.140.0 from commit a1b2c3d
+Created: ~/.compak/index/paks/immich@1.140.yaml
+
+You can now install with: compak install immich@1.140
+```
+
+Then install it:
+```bash
+compak install immich@1.140 --set DB_PASSWORD=secure123
+```
+
+## Version Resolution
+
+When you run `compak install package@version`:
+
+1. Try versioned file: `paks/package@version.yaml`
+2. Fallback to base file: `paks/package.yaml`
+3. Error if neither exists
+
+## Controlling App Versions
+
+For floating packages, control the application version via parameters:
+
+```bash
+compak install myapp \
+  --set APP_VERSION=2.1.0 \
+  --set PORT=8080
+```
+
+The compose file might look like:
+```yaml
+services:
+  app:
+    image: myapp:${APP_VERSION}
+    ports:
+      - "${PORT}:80"
+```
+
+## Downgrading
+
+```bash
+# Uninstall current version
+compak uninstall myapp
+
+# Install older version
+compak install myapp@1.2.0
+```
+
+## Version Comparison
+
+Compak uses semantic versioning (semver) when possible:
+
+- `1.2.4` > `1.2.3` ✓
+- `2.0.0` > `1.9.9` ✓
+- `1.2.3-beta` < `1.2.3` ✓
+
+Falls back to string comparison for non-semver versions.
+
+## Best Practices
+
+1. **Production**: Use pinned versions (`@1.144`)
+2. **Development**: Use floating versions (latest)
+3. **Testing**: Test upgrades in staging first
+4. **Maintenance**: Keep 3-5 recent major/minor versions
+5. **History**: Use `extract` for rarely-needed old versions
+
+## Examples
+
+### Immich (Pinned Version)
+
+```bash
+# Install specific version
+compak install immich@1.144 --set DB_PASSWORD=secure123
+
+# Later, upgrade
+compak upgrade immich --version 1.145
+```
+
+### Custom App (Floating Version)
+
+```bash
+# Install latest, control app version via parameter
+compak install myapp --set VERSION=2.0.0
+
+# Upgrade package metadata, change app version
+compak uninstall myapp
+compak install myapp --set VERSION=2.1.0
+```
+
+## Troubleshooting
+
+**Q: Version not found**
+```bash
+compak install nginx@1.25
+# Error: package nginx@1.25 not found
+```
+
+Solution: Extract from git history
+```bash
+compak extract nginx 1.25
+compak install nginx@1.25
+```
+
+**Q: Already up to date**
+```bash
+compak upgrade immich
+# Package immich is already up to date
+```
+
+This means installed version == latest available version.
+
+**Q: How to check what versions are available?**
+
+Look in the index repository:
+```bash
+ls ~/.compak/index/paks/ | grep immich
+```
+
+Output:
+```
+immich.yaml
+immich@1.144.yaml
+immich@1.143.yaml
+```

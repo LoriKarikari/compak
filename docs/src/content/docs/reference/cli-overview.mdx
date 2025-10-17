@@ -1,0 +1,75 @@
+---
+title: CLI Commands Overview
+description: Complete reference for all compak commands
+---
+
+Compak provides a simple CLI for managing Docker Compose packages.
+
+## Quick Reference
+
+| Command | Description |
+|---------|-------------|
+| [install](/reference/commands/install/) | Install a package |
+| [upgrade](/reference/commands/upgrade/) | Upgrade a package to newer version |
+| [uninstall](/reference/commands/uninstall/) | Uninstall a package |
+| [list](/reference/commands/list/) | List installed packages |
+| [status](/reference/commands/status/) | Show package status |
+| [search](/reference/commands/search/) | Search for packages |
+| [update](/reference/commands/update/) | Update package index |
+| [extract](/reference/commands/extract/) | Extract version from git history |
+| [publish](/reference/commands/publish/) | Publish package to registry |
+
+## Common Workflows
+
+### Install and manage packages
+
+```bash
+# Install
+compak install nginx
+
+# Check status
+compak status nginx
+
+# List all
+compak list
+
+# Uninstall
+compak uninstall nginx
+```
+
+### Version management
+
+```bash
+# Install specific version
+compak install immich@1.144
+
+# Upgrade to latest
+compak upgrade immich
+
+# Upgrade all
+compak upgrade --all
+```
+
+### Package discovery
+
+```bash
+# Update index
+compak update
+
+# Search packages
+compak search photo
+
+# Extract old version
+compak extract immich 1.140
+```
+
+## Global Flags
+
+Available for all commands:
+
+- `-h, --help` - Show help for command
+
+## Exit Codes
+
+- `0` - Success
+- `1` - Error (check error message for details)

@@ -1,0 +1,229 @@
+---
+title: compak install
+description: Install a package
+---
+
+Install a package from the index, OCI registry, or local path.
+
+## Synopsis
+
+```bash
+compak install [package] [flags]
+```
+
+## Description
+
+The `install` command downloads and deploys a Docker Compose package. It supports installation from multiple sources:
+
+- Package index (curated packages from GitHub)
+- OCI registries (GHCR, Docker Hub, private registries)
+- Local directories
+
+During installation, compak:
+1. Loads the package definition
+2. Downloads the compose file (if remote)
+3. Validates and applies parameters
+4. Creates a `.env` file with parameter values
+5. Pulls Docker images
+6. Starts the services with Docker Compose
+
+## Flags
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--path` | string | Path to local package directory |
+| `--set` | string | Set parameter values (repeatable) |
+| `--version` | string | Package version to install |
+
+## Examples
+
+### From Package Index
+
+Install the latest version from the curated index:
+
+```bash
+compak install immich --set DB_PASSWORD=secure123
+```
+
+### Specific Version
+
+Install a pinned version:
+
+```bash
+compak install immich@1.144 --set DB_PASSWORD=secure123
+```
+
+Using the `--version` flag:
+
+```bash
+compak install immich --version 1.144 --set DB_PASSWORD=secure123
+```
+
+### From OCI Registry
+
+Install from GitHub Container Registry:
+
+```bash
+compak install ghcr.io/compak/nginx:1.0.0
+```
+
+From Docker Hub:
+
+```bash
+compak install docker.io/user/myapp:2.0.0
+```
+
+From private registry:
+
+```bash
+# Login first
+docker login registry.example.com
+
+# Then install
+compak install registry.example.com/myapp:1.0.0
+```
+
+### From Local Directory
+
+Install from a local package directory:
+
+```bash
+compak install myapp --path ./my-package-dir
+```
+
+Directory structure:
+```
+my-package-dir/
+├── package.yaml
+└── docker-compose.yaml
+```
+
+### With Parameters
+
+Set multiple parameters:
+
+```bash
+compak install nginx \
+  --set PORT=8080 \
+  --set SERVER_NAME=myserver.local \
+  --set MAX_BODY_SIZE=50m \
+  --set WORKER_PROCESSES=4
+```
+
+## Parameter Types
+
+Compak validates parameter types:
+
+- **string**: Any text value
+- **number**: Numeric values (e.g., `42`, `3.14`)
+- **boolean**: `true`, `false`, `yes`, `no`, `1`, `0`
+- **port**: Valid port number (1-65535)
+
+## Behavior
+
+### Already Installed
+
+If a package is already installed, compak will not reinstall:
+
+```bash
+$ compak install nginx
+Package nginx@1.0.0 is already installed (installed: 1.0.0)
+Use 'compak uninstall' first to reinstall with different settings
+```
+
+To reinstall:
+```bash
+compak uninstall nginx
+compak install nginx --set PORT=9090
+```
+
+Or upgrade instead:
+```bash
+compak upgrade nginx --version 2.0.0
+```
+
+### Required Parameters
+
+Packages may require certain parameters:
+
+```bash
+$ compak install immich
+Error: parameter validation failed: required parameter 'DB_PASSWORD' is missing
+```
+
+Provide required parameters:
+```bash
+compak install immich --set DB_PASSWORD=secure123
+```
+
+### Installation Location
+
+Packages are installed to:
+```
+~/.compak/state/packages/<package-name>/
+├── docker-compose.yaml
+└── .env
+```
+
+## Common Issues
+
+### Package Not Found
+
+```bash
+$ compak install mypackage
+Error: package mypackage not found in index
+```
+
+**Solutions:**
+- Update index: `compak update`
+- Search for package: `compak search mypackage`
+- Check spelling
+- Use full registry reference: `ghcr.io/user/mypackage:1.0.0`
+
+### Parameter Validation Failed
+
+```bash
+$ compak install myapp --set PORT=99999
+Error: parameter 'PORT' must be a valid port number (1-65535)
+```
+
+**Solution:** Use valid port number (1-65535)
+
+### Compose Command Not Found
+
+```bash
+$ compak install nginx
+Error: no compose command found
+```
+
+**Solution:** Install Docker Compose:
+```bash
+# Docker Compose v2 (recommended)
+sudo apt install docker-compose-plugin
+
+# Or docker-compose
+sudo apt install docker-compose
+
+# Or Podman Compose
+pip install podman-compose
+```
+
+### Permission Denied
+
+```bash
+$ compak install nginx
+Error: failed to create state directory: permission denied
+```
+
+**Solution:** Check permissions:
+```bash
+ls -la ~/.compak/
+chmod 755 ~/.compak/
+```
+
+## See Also
+
+- [upgrade](/reference/commands/upgrade/) - Upgrade packages
+- [uninstall](/reference/commands/uninstall/) - Uninstall packages
+- [Installing Packages Guide](/guides/installing/) - Installation methods
+- [Package Format](/reference/package-format/) - Package structure

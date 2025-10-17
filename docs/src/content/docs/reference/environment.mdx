@@ -1,0 +1,250 @@
+---
+title: Environment Variables
+description: Configuration via environment variables
+---
+
+Compak can be configured using environment variables for flexibility in different environments.
+
+## Package Index
+
+### COMPAK_INDEX_REPO
+
+Override the default package index repository.
+
+```bash
+export COMPAK_INDEX_REPO=https://github.com/myorg/compak-packages.git
+compak update
+```
+
+**Default:** `https://github.com/LoriKarikari/compak.git`
+
+**Use cases:**
+- Private package repositories
+- Fork of official index
+- Testing custom packages
+
+### COMPAK_INDEX_PATH
+
+Override the package index subdirectory path.
+
+```bash
+export COMPAK_INDEX_PATH=custom-paks
+compak update
+```
+
+**Default:** `paks`
+
+**Use cases:**
+- Custom directory structure
+- Multiple package collections in one repo
+
+## Authentication
+
+### GITHUB_TOKEN
+
+GitHub personal access token for GHCR authentication.
+
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+compak install ghcr.io/private/package:1.0.0
+compak publish ghcr.io/user/package:1.0.0 --path ./my-package
+```
+
+**Scopes required:**
+- `read:packages` - For pulling private packages
+- `write:packages` - For publishing packages
+- `delete:packages` - For deleting packages (optional)
+
+**Create token:** https://github.com/settings/tokens
+
+## Testing
+
+### Combined Example
+
+Test with a local package index:
+
+```bash
+# Point to test fixtures
+export COMPAK_INDEX_REPO=https://github.com/LoriKarikari/compak.git
+export COMPAK_INDEX_PATH=test/fixtures/paks
+
+# Update and search
+compak update
+compak search demo
+```
+
+Output:
+```
+NAME              VERSION  DESCRIPTION
+demo-wordpress    6.7.0    Demo WordPress setup
+demo-nextcloud    30.0.0   Demo Nextcloud setup
+```
+
+## Docker Credentials
+
+Compak uses Docker's credential store for registry authentication.
+
+### Docker Hub
+
+```bash
+docker login
+# Enter username and password
+
+compak install docker.io/user/package:1.0.0
+```
+
+### Private Registry
+
+```bash
+docker login registry.example.com
+# Enter credentials
+
+compak install registry.example.com/package:1.0.0
+```
+
+Credentials are stored in `~/.docker/config.json` and automatically used by compak.
+
+## State Directory
+
+Compak stores state in `~/.compak/` by default.
+
+### Directory Structure
+
+```
+~/.compak/
+├── index/              # Package index (git repo)
+│   └── paks/           # Package definitions
+├── state/
+│   ├── installed.json  # Installed packages
+│   └── packages/       # Package files
+│       ├── immich/
+│       │   ├── docker-compose.yaml
+│       │   └── .env
+│       └── nginx/
+│           ├── docker-compose.yaml
+│           └── .env
+```
+
+## Examples
+
+### Development Setup
+
+```bash
+# Use custom index for development
+export COMPAK_INDEX_REPO=https://github.com/myteam/dev-packages.git
+export COMPAK_INDEX_PATH=dev-paks
+
+# Update index
+compak update
+
+# Install development packages
+compak install dev-app
+```
+
+### CI/CD Pipeline
+
+```bash
+#!/bin/bash
+# ci-deploy.sh
+
+# Set GHCR token from secrets
+export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+
+# Install from private registry
+compak install ghcr.io/myorg/app:$VERSION --set ENV=production
+
+# Check status
+compak status app
+```
+
+### Multi-Environment
+
+```bash
+# Production
+export COMPAK_INDEX_REPO=https://github.com/myorg/prod-packages.git
+compak install myapp --set ENV=production
+
+# Staging
+export COMPAK_INDEX_REPO=https://github.com/myorg/staging-packages.git
+compak install myapp --set ENV=staging
+```
+
+## Best Practices
+
+1. **Use .env files** for permanent configuration
+2. **Set tokens in CI/CD secrets** (never commit tokens)
+3. **Test with fixtures** before modifying production index
+4. **Document custom index** usage in team docs
+5. **Rotate tokens** periodically for security
+
+## Security Notes
+
+⚠️ **Never commit tokens or credentials to version control**
+
+### Safe Practices
+
+```bash
+# ✅ Good: Use environment variables
+export GITHUB_TOKEN=ghp_token
+compak publish ghcr.io/user/pkg:1.0.0
+
+# ✅ Good: Load from secure vault
+export GITHUB_TOKEN=$(vault kv get -field=token secret/github)
+compak publish ghcr.io/user/pkg:1.0.0
+
+# ❌ Bad: Hardcoded in scripts
+GITHUB_TOKEN=ghp_token compak publish ...  # Don't do this!
+```
+
+### CI/CD Example
+
+```yaml
+# GitHub Actions
+- name: Publish package
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  run: |
+    compak publish ghcr.io/${{ github.repository }}/myapp:${{ github.ref_name }}
+```
+
+## Troubleshooting
+
+### Index Not Updating
+
+```bash
+# Clear and re-clone
+rm -rf ~/.compak/index
+compak update
+```
+
+### Authentication Failures
+
+```bash
+# Verify token
+echo $GITHUB_TOKEN | cut -c1-10
+# Should show: ghp_...
+
+# Test Docker login
+docker login ghcr.io -u USERNAME -p $GITHUB_TOKEN
+```
+
+### Custom Index Not Found
+
+```bash
+# Check variables
+echo $COMPAK_INDEX_REPO
+echo $COMPAK_INDEX_PATH
+
+# Verify repo exists
+git ls-remote $COMPAK_INDEX_REPO
+
+# Check path exists in repo
+git clone $COMPAK_INDEX_REPO /tmp/test-repo
+ls /tmp/test-repo/$COMPAK_INDEX_PATH
+```
+
+## See Also
+
+- [Installing Packages](/guides/installing/) - Installation methods
+- [Publishing Packages](/guides/publishing/) - Publishing workflow
+- [CLI Commands](/reference/cli/) - Command reference

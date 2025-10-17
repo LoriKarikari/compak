@@ -1,0 +1,34 @@
+---
+title: CLI Commands
+description: Complete reference for all compak commands
+---
+
+Compak provides a simple CLI for managing Docker Compose packages.
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| **[install](/reference/commands/install/)** | Install a package from index, registry, or local path |
+| **[upgrade](/reference/commands/upgrade/)** | Upgrade an installed package to a newer version |
+| **[uninstall](/reference/commands/uninstall/)** | Uninstall a package and stop all its services |
+| **[list](/reference/commands/list/)** | List all installed packages |
+| **[status](/reference/commands/status/)** | Show runtime status of a package's containers |
+| **[search](/reference/commands/search/)** | Search for packages in the index |
+| **[update](/reference/commands/update/)** | Update the local package index from GitHub |
+| **[extract](/reference/commands/extract/)** | Extract a specific version from git history |
+| **[publish](/reference/commands/publish/)** | Publish a package to an OCI registry |
+| **[version](/reference/commands/version/)** | Print version information |
+
+## Global Options
+
+| Flag | Description |
+|------|-------------|
+| `-h, --help` | Show help for command |
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Error (check error message) |
