@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	pkg "github.com/LoriKarikari/compak/internal/core/package"
-	"github.com/LoriKarikari/compak/internal/core/registry"
 )
 
 func TestInstallCmdArgs(t *testing.T) {
@@ -155,45 +154,3 @@ parameters:
 	}
 }
 
-func TestIsRegistryReference(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected bool
-	}{
-		{
-			name:     "ghcr.io reference",
-			input:    "ghcr.io/user/package:version",
-			expected: true,
-		},
-		{
-			name:     "docker.io reference",
-			input:    "docker.io/user/package:latest",
-			expected: true,
-		},
-		{
-			name:     "localhost reference",
-			input:    "localhost:5000/package:v1",
-			expected: true,
-		},
-		{
-			name:     "simple package name",
-			input:    "nginx",
-			expected: false,
-		},
-		{
-			name:     "package with version",
-			input:    "nginx:1.0.0",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := registry.IsRegistryReference(tt.input)
-			if result != tt.expected {
-				t.Errorf("IsRegistryReference(%q) = %v, want %v", tt.input, result, tt.expected)
-			}
-		})
-	}
-}

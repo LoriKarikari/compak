@@ -20,6 +20,3 @@ automatically detecting the best available compose command.`,
 func Execute() error {
 	return rootCmd.Execute()
 }
-
-func init() {
-}

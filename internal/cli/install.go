@@ -15,7 +15,6 @@ import (
 	"github.com/LoriKarikari/compak/internal/core/compose"
 	"github.com/LoriKarikari/compak/internal/core/index"
 	pkg "github.com/LoriKarikari/compak/internal/core/package"
-	"github.com/LoriKarikari/compak/internal/core/registry"
 )
 
 var installCmd = &cobra.Command{
@@ -24,28 +23,33 @@ var installCmd = &cobra.Command{
 	Long: `Install a Docker Compose package with optional parameter customization.
 
 Packages can be installed from:
-- OCI registries (e.g., ghcr.io/user/package:version)
+- Curated index (e.g., compak install nginx)
 - Local directories using the --path flag
 
 Parameters can be customized using the --set flag, which accepts key=value pairs.`,
-	Example: `  # Install from OCI registry
-  compak install ghcr.io/compak/nginx:1.0.0
-  compak install docker.io/myuser/wordpress:latest
+	Example: `  # Install from curated index
+  compak install nginx
+  compak install immich@1.144
 
   # Install from local directory
   compak install nginx --path ./examples/nginx
 
   # Install with custom parameters
-  compak install nginx --path ./examples/nginx --set PORT=8080 --set SERVER_NAME=localhost
+  compak install nginx --set PORT=8080 --set SERVER_NAME=localhost
 
   # Install with multiple parameter overrides
-  compak install ghcr.io/compak/nginx:1.0.0 \
-    --set PORT=9090 \
-    --set SERVER_NAME=myserver \
-    --set MAX_BODY_SIZE=50m`,
+  compak install immich \
+    --set DB_PASSWORD=secure123 \
+    --set UPLOAD_LOCATION=/mnt/photos`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
 		packageName := args[0]
+
+		if err := validatePackageName(packageName); err != nil {
+			return err
+		}
+
 		version, err := cmd.Flags().GetString("version")
 		if err != nil {
 			return fmt.Errorf("failed to get version flag: %w", err)
@@ -55,6 +59,15 @@ Parameters can be customized using the --set flag, which accepts key=value pairs
 		if err != nil {
 			return fmt.Errorf("failed to get path flag: %w", err)
 		}
+
+		if localPath != "" {
+			normalizedPath, err := validateLocalPath(localPath)
+			if err != nil {
+				return err
+			}
+			localPath = normalizedPath
+		}
+
 		setValues, err := cmd.Flags().GetStringSlice("set")
 		if err != nil {
 			return fmt.Errorf("failed to get set flag: %w", err)
@@ -73,31 +86,36 @@ Parameters can be customized using the --set flag, which accepts key=value pairs
 		client := pkg.NewClient(stateDir)
 		manager := pkg.NewManager(client, composeClient, stateDir)
 
-		packageToInstall, sourcePath, err := loadPackage(packageName, version, localPath, manager)
+		packageToInstall, sourcePath, err := loadPackage(ctx, packageName, version, localPath, manager)
 		if err != nil {
 			return err
 		}
 
-		if sourcePath != "" && registry.IsRegistryReference(packageName) {
-			defer func() {
-				if err := os.RemoveAll(sourcePath); err != nil {
-					fmt.Printf("Warning: failed to clean up temp directory: %v\n", err)
-				}
-			}()
-		}
+		existingPkg, err := client.GetInstalledPackage(packageToInstall.Name)
+		if err == nil {
+			if existingPkg.Package.Version == packageToInstall.Version {
+				fmt.Printf("Package %s@%s is already installed\n",
+					packageToInstall.Name, packageToInstall.Version)
+				fmt.Println("Use 'compak upgrade' to update or 'compak uninstall' to reinstall")
+				return nil
+			}
 
-		if existingPkg, err := client.GetInstalledPackage(packageToInstall.Name); err == nil {
-			fmt.Printf("Package %s@%s is already installed (installed: %s)\n",
-				packageToInstall.Name, packageToInstall.Version, existingPkg.Package.Version)
-			fmt.Println("Use 'compak uninstall' first to reinstall with different settings")
-			return nil
+			return fmt.Errorf("package %s is already installed with version %s (requested: %s). Use 'compak upgrade' to update or 'compak uninstall' first",
+				packageToInstall.Name, existingPkg.Package.Version, packageToInstall.Version)
 		}
 
 		fmt.Printf("Installing package: %s@%s\n", packageToInstall.Name, packageToInstall.Version)
 
 		displayPackageInfo(packageToInstall)
 
-		values := parseSetValues(setValues)
+		values, err := parseSetValues(setValues)
+		if err != nil {
+			return err
+		}
+
+		if err := validateParameters(packageToInstall, values); err != nil {
+			return fmt.Errorf("parameter validation failed: %w", err)
+		}
 
 		if sourcePath != "" {
 			return manager.DeployFromPath(*packageToInstall, values, sourcePath)
@@ -107,56 +125,57 @@ Parameters can be customized using the --set flag, which accepts key=value pairs
 	},
 }
 
-func loadPackage(packageName, version, localPath string, manager *pkg.Manager) (*pkg.Package, string, error) {
+func loadPackage(ctx context.Context, packageName, version, localPath string, manager *pkg.Manager) (*pkg.Package, string, error) {
 	if localPath != "" {
-		packageToInstall, err := manager.LoadPackageFromDir(localPath)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to load package from %s: %w", localPath, err)
-		}
-		return packageToInstall, localPath, nil
+		return loadFromLocalPath(localPath, manager)
 	}
 
-	if registry.IsRegistryReference(packageName) {
-		fmt.Printf("Pulling package from registry: %s\n", packageName)
+	return loadFromIndex(ctx, packageName, version)
+}
 
-		registryClient := registry.NewClient()
-		tempDir := filepath.Join(os.TempDir(), "compak-pull", fmt.Sprintf("%d", os.Getpid()))
-
-		if err := registryClient.Pull(context.Background(), packageName, tempDir); err != nil {
-			return nil, "", fmt.Errorf("failed to pull package: %w", err)
-		}
-
-		packageToInstall, err := manager.LoadPackageFromDir(tempDir)
+func validateLocalPath(localPath string) (string, error) {
+	if !filepath.IsAbs(localPath) {
+		absPath, err := filepath.Abs(localPath)
 		if err != nil {
-			return nil, "", fmt.Errorf("failed to load pulled package: %w", err)
+			return "", fmt.Errorf("failed to resolve path: %w", err)
 		}
-		return packageToInstall, tempDir, nil
+		localPath = absPath
+	}
+
+	if _, err := os.Stat(localPath); err != nil {
+		return "", fmt.Errorf("local path does not exist: %w", err)
+	}
+
+	return localPath, nil
+}
+
+func loadFromLocalPath(localPath string, manager *pkg.Manager) (*pkg.Package, string, error) {
+	packageToInstall, err := manager.LoadPackageFromDir(localPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to load package from %s: %w", localPath, err)
+	}
+	return packageToInstall, localPath, nil
+}
+
+func loadFromIndex(ctx context.Context, packageName, version string) (*pkg.Package, string, error) {
+	lookupName := packageName
+	if version != "" && !strings.Contains(packageName, "@") {
+		lookupName = fmt.Sprintf("%s@%s", packageName, version)
 	}
 
 	indexClient := index.NewClient()
-	packageData, err := indexClient.LoadPackageFromIndex(context.Background(), packageName)
-	if err == nil {
-		var packageToInstall pkg.Package
-		if err := yaml.Unmarshal(packageData, &packageToInstall); err != nil {
-			return nil, "", fmt.Errorf("failed to parse package from index: %w", err)
-		}
-		fmt.Printf("Loaded %s from index (source: %s)\n", packageName, packageToInstall.Source)
-		return &packageToInstall, "", nil
+	packageData, err := indexClient.LoadPackageFromIndex(ctx, lookupName)
+	if err != nil {
+		return nil, "", fmt.Errorf("package %q not found in index: %w", lookupName, err)
 	}
 
-	packageToInstall := &pkg.Package{
-		Name:        packageName,
-		Version:     version,
-		Description: "Local package",
-		Parameters:  make(map[string]pkg.Param),
-		Values:      make(map[string]string),
+	var packageToInstall pkg.Package
+	if err := yaml.Unmarshal(packageData, &packageToInstall); err != nil {
+		return nil, "", fmt.Errorf("failed to parse package from index: %w", err)
 	}
 
-	if version == "" {
-		packageToInstall.Version = "latest"
-	}
-
-	return packageToInstall, "", nil
+	fmt.Printf("Loaded %s from index (source: %s)\n", lookupName, packageToInstall.Source)
+	return &packageToInstall, "", nil
 }
 
 func displayPackageInfo(pkg *pkg.Package) {
@@ -179,17 +198,48 @@ func displayPackageInfo(pkg *pkg.Package) {
 	}
 }
 
-func parseSetValues(setValues []string) map[string]string {
+func validateParameters(pkg *pkg.Package, values map[string]string) error {
+	var errors []string
+
+	for key := range values {
+		if _, exists := pkg.Parameters[key]; !exists {
+			errors = append(errors, fmt.Sprintf("unknown parameter: %s", key))
+		}
+	}
+
+	for key, param := range pkg.Parameters {
+		if param.Required {
+			_, hasValue := values[key]
+			_, hasDefault := pkg.Values[key]
+			if !hasValue && !hasDefault && param.Default == "" {
+				errors = append(errors, fmt.Sprintf("required parameter missing: %s", key))
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("%s", strings.Join(errors, "; "))
+	}
+	return nil
+}
+
+func parseSetValues(setValues []string) (map[string]string, error) {
+	var errors []string
 	parsed := lo.FilterMap(setValues, func(v string, _ int) (lo.Entry[string, string], bool) {
 		parts := strings.SplitN(v, "=", 2)
-		if len(parts) == 2 {
+		if len(parts) == 2 && parts[0] != "" {
 			fmt.Printf("Setting %s=%s\n", parts[0], parts[1])
 			return lo.Entry[string, string]{Key: parts[0], Value: parts[1]}, true
 		}
+		errors = append(errors, v)
 		return lo.Entry[string, string]{}, false
 	})
 
-	return lo.FromEntries(parsed)
+	if len(errors) > 0 {
+		return nil, fmt.Errorf("invalid --set values (must be KEY=VALUE): %v", errors)
+	}
+
+	return lo.FromEntries(parsed), nil
 }
 
 func init() {
