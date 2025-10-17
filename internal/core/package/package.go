@@ -5,16 +5,16 @@ import (
 )
 
 type Package struct {
-	Name        string            `yaml:"name" json:"name"`
-	Version     string            `yaml:"version" json:"version"`
-	Description string            `yaml:"description" json:"description"`
-	Author      string            `yaml:"author" json:"author"`
-	License     string            `yaml:"license" json:"license"`
-	Homepage    string            `yaml:"homepage" json:"homepage"`
-	Repository  string            `yaml:"repository" json:"repository"`
-	Source      string            `yaml:"source" json:"source"`
-	Parameters  map[string]Param  `yaml:"parameters" json:"parameters"`
-	Values      map[string]string `yaml:"values" json:"values"`
+	Name           string            `yaml:"name" json:"name"`
+	Version        string            `yaml:"version" json:"version"`
+	Description    string            `yaml:"description" json:"description"`
+	Author         string            `yaml:"author" json:"author"`
+	License        string            `yaml:"license" json:"license"`
+	Homepage       string            `yaml:"homepage" json:"homepage"`
+	Repository     string            `yaml:"repository" json:"repository"`
+	Source         string            `yaml:"source" json:"source"`
+	Parameters     map[string]Param  `yaml:"parameters" json:"parameters"`
+	Values         map[string]string `yaml:"values" json:"values"`
 }
 
 type Param struct {

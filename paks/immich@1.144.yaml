@@ -1,10 +1,10 @@
 name: immich
-version: latest
+version: 1.144.1
 description: Self-hosted photo and video backup solution (Google Photos alternative)
 author: immich-app
 homepage: https://immich.app
 repository: https://github.com/immich-app/immich
-source: https://raw.githubusercontent.com/immich-app/immich/main/docker/docker-compose.yml
+source: https://raw.githubusercontent.com/immich-app/immich/v1.144.1/docker/docker-compose.yml
 
 parameters:
   UPLOAD_LOCATION:
@@ -19,7 +19,7 @@ parameters:
 
   IMMICH_VERSION:
     type: string
-    default: "release"
+    default: "v1.144.1"
     description: "Immich version to use (release, v1.144.1, etc.)"
 
   DB_PASSWORD:
