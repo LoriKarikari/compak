@@ -12,9 +12,12 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-playground/validator/v10"
 	"github.com/samber/lo"
 	"gopkg.in/yaml.v3"
+
+	pkg "github.com/LoriKarikari/compak/internal/core/package"
 )
 
 const (
@@ -93,7 +96,9 @@ func (c *Client) Search(ctx context.Context, query string, limit int) ([]SearchR
 	}
 
 	query = strings.ToLower(query)
-	results := lo.FilterMap(lo.Values(c.cache.Paks), func(pak PakMetadata, _ int) (SearchResult, bool) {
+	results := lo.FilterMap(lo.Entries(c.cache.Paks), func(entry lo.Entry[string, PakMetadata], _ int) (SearchResult, bool) {
+		pak := entry.Value
+		pakName := entry.Key
 		if query != "" {
 			matches := strings.Contains(strings.ToLower(pak.Name), query) ||
 				strings.Contains(strings.ToLower(pak.Description), query)
@@ -103,7 +108,7 @@ func (c *Client) Search(ctx context.Context, query string, limit int) ([]SearchR
 		}
 
 		return SearchResult{
-			Name:        pak.Name,
+			Name:        pakName,
 			Version:     pak.Version,
 			Description: pak.Description,
 			Author:      pak.Author,
@@ -267,7 +272,8 @@ func (c *Client) loadLocalPaks(paks map[string]PakMetadata, paksPath string) (er
 			return fmt.Errorf("validation failed for %s: %w", pakPath, err)
 		}
 
-		paks[pak.Name] = pak
+		pakName := strings.TrimSuffix(entry.Name(), ".yaml")
+		paks[pakName] = pak
 	}
 
 	return nil
@@ -305,6 +311,13 @@ func (c *Client) LoadPackageFromIndex(ctx context.Context, name string) (data []
 
 	file, err := root.Open(relPath)
 	if err != nil {
+		if strings.Contains(name, "@") {
+			if extracted, extractErr := c.extractVersionFromHistory(name); extractErr == nil {
+				return extracted, nil
+			}
+			baseName := strings.Split(name, "@")[0]
+			return c.LoadPackageFromIndex(ctx, baseName)
+		}
 		return nil, fmt.Errorf("package %s not found in index", name)
 	}
 	defer func() {
@@ -319,4 +332,74 @@ func (c *Client) LoadPackageFromIndex(ctx context.Context, name string) (data []
 	}
 
 	return data, nil
+}
+
+func (c *Client) extractVersionFromHistory(nameWithVersion string) ([]byte, error) {
+	parts := strings.Split(nameWithVersion, "@")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid versioned package name: %s", nameWithVersion)
+	}
+	packageName := parts[0]
+	targetVersion := parts[1]
+
+	repo, err := git.PlainOpen(c.repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open git repo: %w", err)
+	}
+
+	ref, err := repo.Head()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get HEAD: %w", err)
+	}
+
+	commits, err := repo.Log(&git.LogOptions{From: ref.Hash()})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get commit log: %w", err)
+	}
+
+	pakFile := fmt.Sprintf("%s/%s.yaml", c.paksSubdir, packageName)
+	var foundCommit *object.Commit
+
+	searchErr := commits.ForEach(func(commit *object.Commit) error {
+		file, err := commit.File(pakFile)
+		if err != nil {
+			return nil
+		}
+
+		contents, err := file.Contents()
+		if err != nil {
+			return nil
+		}
+
+		var p pkg.Package
+		if err := yaml.Unmarshal([]byte(contents), &p); err != nil {
+			return nil
+		}
+
+		if p.Version == targetVersion {
+			foundCommit = commit
+			return fmt.Errorf("found")
+		}
+
+		return nil
+	})
+	if searchErr != nil && searchErr.Error() != "found" {
+		return nil, fmt.Errorf("failed to search git history: %w", searchErr)
+	}
+
+	if foundCommit == nil {
+		return nil, fmt.Errorf("version %s not found in git history", targetVersion)
+	}
+
+	file, err := foundCommit.File(pakFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file from commit: %w", err)
+	}
+
+	contents, err := file.Contents()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file contents: %w", err)
+	}
+
+	return []byte(contents), nil
 }

@@ -9,13 +9,6 @@ import (
 	"github.com/LoriKarikari/compak/internal/core/index"
 )
 
-var searchLimit int
-
-func init() {
-	searchCmd.Flags().IntVar(&searchLimit, "limit", 10, "Maximum number of results to show")
-	rootCmd.AddCommand(searchCmd)
-}
-
 var searchCmd = &cobra.Command{
 	Use:   "search [QUERY]",
 	Short: "Search for compak paks",
@@ -32,11 +25,22 @@ Examples:
 		if len(args) > 0 {
 			query = args[0]
 		}
-		return searchPackages(query)
+
+		limit, err := cmd.Flags().GetInt("limit")
+		if err != nil {
+			return fmt.Errorf("failed to get limit flag: %w", err)
+		}
+
+		return searchPackages(query, limit)
 	},
 }
 
-func searchPackages(query string) error {
+func init() {
+	searchCmd.Flags().Int("limit", 10, "Maximum number of results to show")
+	rootCmd.AddCommand(searchCmd)
+}
+
+func searchPackages(query string, limit int) error {
 	if query != "" {
 		fmt.Printf("Searching for paks matching '%s'...\n\n", query)
 	} else {
@@ -46,7 +50,7 @@ func searchPackages(query string) error {
 	client := index.NewClient()
 	ctx := context.Background()
 
-	results, err := client.Search(ctx, query, searchLimit)
+	results, err := client.Search(ctx, query, limit)
 	if err != nil {
 		return fmt.Errorf("search failed: %w", err)
 	}
@@ -75,7 +79,11 @@ func searchPackages(query string) error {
 }
 
 func displaySearchResult(result index.SearchResult) {
-	fmt.Printf("[%s] v%s\n", result.Name, result.Version)
+	version := result.Version
+	if version != "latest" && version[0] != 'v' {
+		version = "v" + version
+	}
+	fmt.Printf("[%s] %s\n", result.Name, version)
 
 	if result.Description != "" {
 		fmt.Printf("   %s\n", result.Description)

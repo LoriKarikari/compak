@@ -50,12 +50,12 @@ func TestSearchCmd_Args(t *testing.T) {
 	}
 }
 
-func TestSearchPackages_Integration(t *testing.T) {
+func TestSearchPackagesIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
-	err := searchPackages("immich")
+	err := searchPackages("immich", 10)
 	if err != nil {
 		t.Fatalf("searchPackages failed: %v", err)
 	}
@@ -108,7 +108,11 @@ func TestParseSetValues(t *testing.T) {
 			os.Stdout = nil
 			defer func() { os.Stdout = old }()
 
-			result := parseSetValues(tt.input)
+			result, err := parseSetValues(tt.input)
+
+			if len(tt.expected) > 0 && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d values, got %d", len(tt.expected), len(result))
@@ -229,8 +233,6 @@ func TestSearchCmd_Execute(t *testing.T) {
 
 			cmd := &cobra.Command{Use: "compak"}
 			cmd.AddCommand(searchCmd)
-
-			searchLimit = 10
 
 			cmd.SetArgs(tt.args)
 
