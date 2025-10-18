@@ -160,19 +160,19 @@ func TestFetchLatestPackage_InvalidVersion(t *testing.T) {
 	}{
 		{
 			name:          "invalid semantic version",
-			packageName:   "nginx",
+			packageName:   "immich",
 			targetVersion: "not-a-version",
 			wantErr:       true,
 		},
 		{
 			name:          "latest is valid",
-			packageName:   "nginx",
+			packageName:   "immich",
 			targetVersion: "latest",
 			wantErr:       false,
 		},
 		{
 			name:          "empty version is valid",
-			packageName:   "nginx",
+			packageName:   "immich",
 			targetVersion: "",
 			wantErr:       false,
 		},

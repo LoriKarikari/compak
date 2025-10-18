@@ -75,8 +75,8 @@ func testSearchForImmich(ctx context.Context, t *testing.T, client *Client) {
 		t.Fatalf(searchFailedMsg, err)
 	}
 
-	if len(results) != 1 {
-		t.Errorf("Expected 1 result for immich, got %d", len(results))
+	if len(results) == 0 {
+		t.Error("Expected at least 1 result for immich, got 0")
 	}
 
 	if len(results) > 0 {

@@ -66,6 +66,7 @@ func TestParseSetValues(t *testing.T) {
 		name     string
 		input    []string
 		expected map[string]string
+		wantErr  bool
 	}{
 		{
 			name:  "single value",
@@ -73,6 +74,7 @@ func TestParseSetValues(t *testing.T) {
 			expected: map[string]string{
 				"PORT": "8080",
 			},
+			wantErr: false,
 		},
 		{
 			name:  "multiple values",
@@ -82,6 +84,7 @@ func TestParseSetValues(t *testing.T) {
 				"HOST":    "localhost",
 				"DB_NAME": "mydb",
 			},
+			wantErr: false,
 		},
 		{
 			name:  "values with equals sign",
@@ -89,16 +92,19 @@ func TestParseSetValues(t *testing.T) {
 			expected: map[string]string{
 				"CONNECTION_STRING": "host=localhost;port=5432",
 			},
+			wantErr: false,
 		},
 		{
 			name:     "invalid format (no equals)",
 			input:    []string{"PORT", "HOST=localhost"},
-			expected: map[string]string{"HOST": "localhost"},
+			expected: map[string]string{},
+			wantErr:  true,
 		},
 		{
 			name:     "empty input",
 			input:    []string{},
 			expected: map[string]string{},
+			wantErr:  false,
 		},
 	}
 
@@ -110,11 +116,12 @@ func TestParseSetValues(t *testing.T) {
 
 			result, err := parseSetValues(tt.input)
 
-			if len(tt.expected) > 0 && err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseSetValues() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
 
-			if len(result) != len(tt.expected) {
+			if !tt.wantErr && len(result) != len(tt.expected) {
 				t.Errorf("Expected %d values, got %d", len(tt.expected), len(result))
 			}
 
