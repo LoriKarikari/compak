@@ -16,6 +16,20 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
+        cache: false
+
+    - name: Restore Go cache
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: nonexistent
+        restore-keys: |
+          ${{ runner.os }}-go-${{ hashFiles('go.mod') }}-
+
+    - name: Download Go modules
+      run: go mod download
 
     - name: Tidy modules
       run: go mod tidy
@@ -24,7 +38,23 @@ jobs:
       run: make build
 
     - name: Test
-      run: go test -v -race -cover -short -timeout=5m ./...
+      run: go test -v -race -cover -timeout=5m ./...
+
+    - name: Trim Go cache
+      if: github.ref == 'refs/heads/main'
+      run: find ~/.cache/go-build -type f -mmin +90 -delete
+
+    - name: Set Go cache date
+      run: echo "GO_CACHE_DATE=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+
+    - name: Save Go cache
+      if: github.ref == 'refs/heads/main'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('go.mod') }}-${{ env.GO_CACHE_DATE }}
 
   lint:
     runs-on: ubuntu-latest
