@@ -42,6 +42,7 @@ bin/
 # Local compak state and cache
 .compak/
 ~/.compak/
+.cache/
 
 # Temporary files
 *.tmp
@@ -61,4 +62,4 @@ debug
 __debug_bin*
 
 # Air (hot reload) tmp directory
-tmp/
+tmp/.cache/
