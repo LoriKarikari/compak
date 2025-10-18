@@ -1,0 +1,43 @@
+name: openproject
+version: v16.5.1
+description: Open source project management software
+author: OpenProject Foundation
+homepage: https://www.openproject.org
+repository: https://github.com/opf/openproject
+source: https://raw.githubusercontent.com/opf/openproject-docker-compose/stable/16/docker-compose.yml
+
+parameters:
+  PORT:
+    type: string
+    default: "8080"
+    description: "Port to expose OpenProject on"
+
+  POSTGRES_PASSWORD:
+    type: string
+    required: true
+    description: "PostgreSQL database password"
+
+  OPENPROJECT_HOST__NAME:
+    type: string
+    default: "localhost:8080"
+    description: "Hostname for OpenProject (e.g., openproject.example.com)"
+
+  TAG:
+    type: string
+    default: "16-slim"
+    description: "OpenProject version tag"
+
+  OPENPROJECT_HTTPS:
+    type: string
+    default: "true"
+    description: "Enable HTTPS (true/false)"
+
+  RAILS_MIN_THREADS:
+    type: string
+    default: "4"
+    description: "Minimum number of Rails threads"
+
+  RAILS_MAX_THREADS:
+    type: string
+    default: "16"
+    description: "Maximum number of Rails threads"
