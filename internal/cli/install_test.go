@@ -153,4 +153,3 @@ parameters:
 		t.Error("expected parameters to be loaded")
 	}
 }
-
