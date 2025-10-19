@@ -10,41 +10,22 @@ builds:
     binary: compak
     env:
       - CGO_ENABLED=0
-    targets:
-      - linux_amd64
-      - linux_arm64
-      - darwin_amd64
-      - darwin_arm64
-      - windows_amd64
-      - windows_arm64
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
     ldflags:
       - -s -w
       - -X github.com/LoriKarikari/compak/internal/cli.version={{.Version}}
       - -X github.com/LoriKarikari/compak/internal/cli.commit={{.Commit}}
 
 archives:
-  - id: compak
-    formats: [ 'tar.gz']
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- .Version }}_
-      {{- .Os }}_
-      {{- .Arch }}
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
       - LICENSE
-  - id: compak-windows
-    formats: [ 'zip']
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- .Version }}_
-      {{- .Os }}_
-      {{- .Arch }}
-    files:
-      - README.md
-      - LICENSE
-    ids:
-      - compak
 
 checksum:
   name_template: 'checksums.txt'
